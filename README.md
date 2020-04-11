@@ -1,2 +1,2 @@
-# UWPTest_3DP
-Basic UWP app talking to a 3D printer
+# UWP Tests
+Basic apps exploring Microsoft's [Universal Windows Platform (UWP)](https://docs.microsoft.com/en-us/windows/uwp/)
