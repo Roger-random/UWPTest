@@ -69,22 +69,32 @@ namespace Hello3DP
                     {
                         if (device != null)
                         {
-                            device.BaudRate = 9600;
+                            device.BaudRate = 250000;
                             device.DataBits = 8;
                             device.StopBits = SerialStopBitCount.One;
                             device.Parity = SerialParity.None;
 
-                            device.ReadTimeout = new TimeSpan(0, 0, 1);
+                            device.IsDataTerminalReadyEnabled = true; // Default is false, apparently required to be true to talk to RAMPS board.
+
+                            device.ReadTimeout = new TimeSpan(0, 0, 3);
 
                             using (DataReader reader = new DataReader(device.InputStream))
                             {
                                 reader.UnicodeEncoding = UnicodeEncoding.Utf8;
-                                reader.InputStreamOptions = InputStreamOptions.Partial;
-                                AppendText("Awaiting LoadAsync");
-                                await reader.LoadAsync(10);
-                                AppendText("LoadAsync complete");
-                                AppendText($"Available buffer length = {reader.UnconsumedBufferLength}");
-                                AppendText(reader.ReadByte().ToString());
+                                reader.InputStreamOptions = InputStreamOptions.ReadAhead;
+
+                                Boolean readmore = true;
+                                while(readmore)
+                                {
+                                    await reader.LoadAsync(2048);
+                                    if (reader.UnconsumedBufferLength < 2048)
+                                    {
+                                        readmore = false;
+                                    }
+
+                                    AppendText(reader.ReadString(reader.UnconsumedBufferLength));
+                                }
+                                AppendText("\r\n\r\n- -\r\nRead complete.");
                             }
                         }
                         else
