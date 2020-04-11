@@ -26,5 +26,17 @@ namespace Hello3DP
         {
             this.InitializeComponent();
         }
+
+        private void AppendText(string t)
+        {
+            textOutput.Text += "\r\n";
+            textOutput.Text += t;
+        }
+
+        protected override void OnNavigatedTo(NavigationEventArgs e)
+        {
+            base.OnNavigatedTo(e);
+            AppendText("OnNavigatedTo");
+        }
     }
 }

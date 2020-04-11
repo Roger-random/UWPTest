@@ -9,6 +9,25 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid>
+        <RelativePanel>
+            <TextBlock x:Name="topLabel"
+                       Text="3D Printer Serial Communication Test"
+                       TextWrapping="Wrap"
+                       FontSize="24"
+                       RelativePanel.AlignTopWithPanel="True"
+                       RelativePanel.AlignLeftWithPanel="True"
+                       RelativePanel.AlignRightWithPanel="True"/>
+            <TextBox x:Name="textOutput"
+                     Text="Application starting..."
+                     TextWrapping="Wrap"
+                     RelativePanel.AlignBottomWithPanel="True"
+                     RelativePanel.Below="topLabel"
+                     RelativePanel.AlignLeftWith="topLabel"
+                     RelativePanel.AlignRightWith="topLabel"
+                     FontSize="16"
+                     IsReadOnly="True"
+                     ScrollViewer.VerticalScrollBarVisibility="Visible"/>
+        </RelativePanel>
 
     </Grid>
 </Page>
