@@ -76,23 +76,26 @@ namespace Hello3DP
 
                             device.IsDataTerminalReadyEnabled = true; // Default is false, apparently required to be true to talk to RAMPS board.
 
-                            device.ReadTimeout = new TimeSpan(0, 0, 3);
-
                             using (DataReader reader = new DataReader(device.InputStream))
                             {
                                 reader.UnicodeEncoding = UnicodeEncoding.Utf8;
                                 reader.InputStreamOptions = InputStreamOptions.ReadAhead;
 
                                 Boolean readmore = true;
+                                int readIndex = -1;
+                                Task[] readtask = new Task[1];
                                 while(readmore)
                                 {
-                                    await reader.LoadAsync(2048);
-                                    if (reader.UnconsumedBufferLength < 2048)
+                                    readtask[0] = reader.LoadAsync(2048).AsTask();
+                                    readIndex = Task.WaitAny(readtask, 3000);
+                                    if (readIndex == -1)
                                     {
                                         readmore = false;
                                     }
-
-                                    AppendText(reader.ReadString(reader.UnconsumedBufferLength));
+                                    else
+                                    {
+                                        AppendText(reader.ReadString(reader.UnconsumedBufferLength));
+                                    }
                                 }
                                 AppendText("\r\n\r\n- -\r\nRead complete.");
                             }
