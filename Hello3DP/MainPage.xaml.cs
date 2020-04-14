@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Devices.Enumeration;
 using Windows.Devices.SerialCommunication;
@@ -84,20 +85,23 @@ namespace Hello3DP
                                 Boolean readmore = true;
                                 int readIndex = -1;
                                 Task[] readtask = new Task[1];
+                                CancellationTokenSource readCancelSrc = new CancellationTokenSource();
                                 while(readmore)
                                 {
-                                    readtask[0] = reader.LoadAsync(2048).AsTask();
-                                    readIndex = Task.WaitAny(readtask, 3000);
+                                    readtask[0] = reader.LoadAsync(2048).AsTask(readCancelSrc.Token);
+                                    readIndex = Task.WaitAny(readtask, 1000);
                                     if (readIndex == -1)
                                     {
                                         readmore = false;
+                                        readCancelSrc.Cancel();
+                                        AppendText("\r\n\r\n- -\r\nRead complete.\r\n");
                                     }
                                     else
                                     {
                                         AppendText(reader.ReadString(reader.UnconsumedBufferLength));
+                                        AppendText("\r\n\r\nreading more...\r\n\r\n");
                                     }
                                 }
-                                AppendText("\r\n\r\n- -\r\nRead complete.");
                             }
                         }
                         else
