@@ -22,6 +22,7 @@ namespace Hello3DP
     /// </summary>
     sealed partial class App : Application
     {
+        public Logger logger { get; }
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
         /// executed, and as such is the logical equivalent of main() or WinMain().
@@ -30,6 +31,8 @@ namespace Hello3DP
         {
             this.InitializeComponent();
             this.Suspending += OnSuspending;
+            this.Resuming += OnResuming;
+            this.logger = new Logger();
         }
 
         /// <summary>
@@ -40,6 +43,7 @@ namespace Hello3DP
         protected override void OnLaunched(LaunchActivatedEventArgs e)
         {
             Frame rootFrame = Window.Current.Content as Frame;
+            logger.Open();
 
             // Do not repeat app initialization when the Window already has content,
             // just ensure that the window is active
@@ -71,6 +75,17 @@ namespace Hello3DP
                 // Ensure the current window is active
                 Window.Current.Activate();
             }
+        }
+
+        protected override void OnActivated(IActivatedEventArgs args)
+        {
+            logger.Open();
+            base.OnActivated(args);
+        }
+
+        private void OnResuming(object sender, object e)
+        {
+            logger.Open();
         }
 
         /// <summary>

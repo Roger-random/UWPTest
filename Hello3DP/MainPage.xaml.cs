@@ -41,6 +41,7 @@ namespace Hello3DP
                 outputbox.Text += "\r\n";
                 outputbox.Text += t;
             }
+            ((App)Application.Current).logger.Verbose(t);
         }
 
         protected override async void OnNavigatedTo(NavigationEventArgs e)
