@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -9,6 +10,7 @@ using Windows.Devices.Enumeration;
 using Windows.Devices.SerialCommunication;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Foundation.Diagnostics;
 using Windows.Storage.Streams;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -34,6 +36,19 @@ namespace Hello3DP
             this.InitializeComponent();
         }
 
+        private void Log(string t, LoggingLevel level=LoggingLevel.Verbose)
+        {
+            Logger logger = ((App)Application.Current).logger;
+            if (logger != null)
+            {
+                logger.Log(t, level);
+            }
+            else
+            {
+                Debug.WriteLine("WARNING: Logger not available, log message lost.");
+            }
+        }
+
         private static void AppendText(string t)
         {
             if (outputbox != null)
@@ -41,7 +56,6 @@ namespace Hello3DP
                 outputbox.Text += "\r\n";
                 outputbox.Text += t;
             }
-            ((App)Application.Current).logger.Verbose(t);
         }
 
         protected override async void OnNavigatedTo(NavigationEventArgs e)
@@ -51,19 +65,19 @@ namespace Hello3DP
             {
                 outputbox = textOutput;
             }
-            AppendText("OnNavigatedTo");
+            Log("MainPage.OnNavigatedTo", LoggingLevel.Information);
             await EnumerateDevices();
         }
 
         private async Task<int> EnumerateDevices()
         {
-            AppendText("Enumerating...");
+            Log("MainPage.EnumerateDevices", LoggingLevel.Information);
 
             DeviceInformationCollection deviceinfos = await DeviceInformation.FindAllAsync(SerialDevice.GetDeviceSelector());
 
             foreach (DeviceInformation deviceinfo in deviceinfos)
             {
-                AppendText($"Looking at Name={deviceinfo.Name} ID={deviceinfo.Id}");
+                Log($"Trying DeviceInformation with name={deviceinfo.Name} ID={deviceinfo.Id}");
 
                 try
                 {
@@ -89,31 +103,32 @@ namespace Hello3DP
                                 CancellationTokenSource readCancelSrc = new CancellationTokenSource();
                                 while(readmore)
                                 {
+                                    Log("Reading serial input buffer asking for 2K with 1 second timeout.");
                                     readtask[0] = reader.LoadAsync(2048).AsTask(readCancelSrc.Token);
                                     readIndex = Task.WaitAny(readtask, 1000);
                                     if (readIndex == -1)
                                     {
                                         readmore = false;
                                         readCancelSrc.Cancel();
-                                        AppendText("\r\n\r\n- -\r\nRead complete.\r\n");
+                                        Log("No serial data for 1 second.");
                                     }
                                     else
                                     {
-                                        AppendText(reader.ReadString(reader.UnconsumedBufferLength));
-                                        AppendText("\r\n\r\nreading more...\r\n\r\n");
+                                        string serialdata = reader.ReadString(reader.UnconsumedBufferLength);
+                                        Log($"Retrieved {serialdata.Length} chars. Sample: {serialdata}");
                                     }
                                 }
                             }
                         }
                         else
                         {
-                            AppendText("Device was null, no action taken.");
+                            Log("Device was null, no action taken.");
                         }
                     }
                 }
                 catch (Exception e)
                 {
-                    AppendText(e.ToString());
+                    Log(e.ToString());
                 }
             }
 

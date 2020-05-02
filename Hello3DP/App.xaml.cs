@@ -44,6 +44,7 @@ namespace Hello3DP
         {
             Frame rootFrame = Window.Current.Content as Frame;
             logger.Open();
+            logger.Information("App.OnLaunched");
 
             // Do not repeat app initialization when the Window already has content,
             // just ensure that the window is active
@@ -81,11 +82,13 @@ namespace Hello3DP
         {
             logger.Open();
             base.OnActivated(args);
+            logger.Information("App.OnActivated");
         }
 
         private void OnResuming(object sender, object e)
         {
             logger.Open();
+            logger.Information("App.OnResuming");
         }
 
         /// <summary>
@@ -108,7 +111,8 @@ namespace Hello3DP
         private void OnSuspending(object sender, SuspendingEventArgs e)
         {
             var deferral = e.SuspendingOperation.GetDeferral();
-            //TODO: Save application state and stop any background activity
+            logger.Information("App.OnSuspending");
+            logger.Close();
             deferral.Complete();
         }
     }

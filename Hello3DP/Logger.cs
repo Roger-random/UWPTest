@@ -12,29 +12,19 @@ namespace Hello3DP
 {
     public class Logger
     {
-        class LogEntry
-        {
-            public DateTime TimeStamp { get; }
-            public string Message { get; }
-            public LoggingLevel Level { get; }
-
-            public LogEntry(string message, LoggingLevel level = LoggingLevel.Verbose)
-            {
-                TimeStamp = DateTime.UtcNow;
-                Message = message;
-                Level = level;
-            }
-        }
-
         private StorageFile logFile;
-        //private const int historyMax = 10;
-        //private Queue<List<LogEntry>> history;
-        //private const int blockMax = 200;
-        //private List<LogEntry> currentBlock;
+
+        private const int LOG_BLOCK_MAX = 1000;
+        private List<String> logBlock;
+        private const int LOG_BLOCK_QUEUE_SIZE = 5;
+        private Queue<List<String>> logBlockQueue;
+
 
         public Logger()
         {
             logFile = null;
+            logBlock = new List<String>(LOG_BLOCK_MAX);
+            logBlockQueue = new Queue<List<String>>(LOG_BLOCK_QUEUE_SIZE);
         }
 
         public async void Open()
@@ -44,6 +34,7 @@ namespace Hello3DP
                 string logFileName = DateTime.UtcNow.ToString("yyyyMMddHHmmssff") + ".log";
                 logFile = await ApplicationData.Current.TemporaryFolder.CreateFileAsync(logFileName,
                     Windows.Storage.CreationCollisionOption.OpenIfExists);
+                Log("Logging begins.");
             }
             else
             {
@@ -53,7 +44,8 @@ namespace Hello3DP
 
         public void Close()
         {
-            // TODO: StorageFile doesn't seem to need closing, but we might need other cleanup
+            Log("Closing log file.");
+            WriteLogBlock();
         }
 
         public void Critical(string message)
@@ -81,16 +73,66 @@ namespace Hello3DP
             Log(message, LoggingLevel.Verbose);
         }
 
-        private async void Log(string message, LoggingLevel level)
+        public string SampleString(string raw, int maxLength = 80)
         {
-            LogEntry entry = new LogEntry(message, level);
-            string logText = String.Format("{0} {1} {2}\r\n",
-                entry.TimeStamp.ToString("yyyyMMddHHmmssff"),
-                (int)entry.Level,
-                Regex.Escape(message));
+            int max = maxLength;
+            int now = 0;
+
+            if (raw.Length < maxLength)
+            {
+                max = raw.Length;
+            }
+
+            for (now = 0; now < max; now++)
+            {
+                char nowchar = raw[now];
+                if (Char.IsControl(nowchar) ||
+                    !(Char.IsLetterOrDigit(nowchar) ||
+                        Char.IsWhiteSpace(nowchar) ||
+                        Char.IsPunctuation(nowchar) ||
+                        Char.IsSeparator(nowchar) ||
+                        Char.IsSymbol(nowchar)))
+                {
+                    break;
+                }
+            }
+
+            if (now > 0)
+            {
+                return raw.Substring(0, now);
+            }
+            else
+            {
+                return String.Empty;
+            }
+        }
+
+        private async void WriteLogBlock()
+        {
+            List<String> oldBlock = logBlock;
+            logBlock = new List<String>(LOG_BLOCK_MAX);
+            if (logBlockQueue.Count >= LOG_BLOCK_QUEUE_SIZE)
+            {
+                // Remove the oldest block of logs
+                logBlockQueue.Dequeue();
+            }
+            logBlockQueue.Enqueue(oldBlock);
+            await FileIO.AppendLinesAsync(logFile, oldBlock);
+        }
+
+        public void Log(string message, LoggingLevel level = LoggingLevel.Verbose)
+        {
+            string logText = String.Format("{0} {1} {2}",
+                DateTime.UtcNow.ToString("yyyyMMddHHmmssff"),
+                (int)level,
+                SampleString(message));
 
             Debug.WriteLine(logText);
-            await FileIO.AppendTextAsync(logFile, logText);
+            logBlock.Add(logText);
+            if (logBlock.Count >= LOG_BLOCK_MAX)
+            {
+                WriteLogBlock();
+            }
         }
     }
 }
