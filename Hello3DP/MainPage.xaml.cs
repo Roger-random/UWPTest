@@ -127,8 +127,6 @@ namespace Hello3DP
                 catch (Exception e)
                 {
                     Log(e.ToString());
-                    Log(e.Message);
-                    Log(e.StackTrace);
                 }
             }
 
