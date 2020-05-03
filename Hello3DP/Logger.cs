@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -14,7 +15,8 @@ namespace Hello3DP
     {
         private StorageFile logFile;
 
-        private const int LOG_BLOCK_MAX = 1000;
+        // When we pass this many log entries in a block, make a new block
+        private const int LOG_BLOCK_NEW = 1000;
         private List<String> logBlock;
         private const int LOG_BLOCK_QUEUE_SIZE = 5;
         private Queue<List<String>> logBlockQueue;
@@ -23,7 +25,7 @@ namespace Hello3DP
         public Logger()
         {
             logFile = null;
-            logBlock = new List<String>(LOG_BLOCK_MAX);
+            logBlock = new List<String>(LOG_BLOCK_NEW); // May exceed this size occasionally.
             logBlockQueue = new Queue<List<String>>(LOG_BLOCK_QUEUE_SIZE);
         }
 
@@ -73,44 +75,10 @@ namespace Hello3DP
             Log(message, LoggingLevel.Verbose);
         }
 
-        public string SampleString(string raw, int maxLength = 80)
-        {
-            int max = maxLength;
-            int now = 0;
-
-            if (raw.Length < maxLength)
-            {
-                max = raw.Length;
-            }
-
-            for (now = 0; now < max; now++)
-            {
-                char nowchar = raw[now];
-                if (Char.IsControl(nowchar) ||
-                    !(Char.IsLetterOrDigit(nowchar) ||
-                        Char.IsWhiteSpace(nowchar) ||
-                        Char.IsPunctuation(nowchar) ||
-                        Char.IsSeparator(nowchar) ||
-                        Char.IsSymbol(nowchar)))
-                {
-                    break;
-                }
-            }
-
-            if (now > 0)
-            {
-                return raw.Substring(0, now);
-            }
-            else
-            {
-                return String.Empty;
-            }
-        }
-
         private async void WriteLogBlock()
         {
             List<String> oldBlock = logBlock;
-            logBlock = new List<String>(LOG_BLOCK_MAX);
+            logBlock = new List<String>(LOG_BLOCK_NEW);
             if (logBlockQueue.Count >= LOG_BLOCK_QUEUE_SIZE)
             {
                 // Remove the oldest block of logs
@@ -122,14 +90,30 @@ namespace Hello3DP
 
         public void Log(string message, LoggingLevel level = LoggingLevel.Verbose)
         {
-            string logText = String.Format("{0} {1} {2}",
+            StringReader sr = null;
+            string msgLine = null;
+            string logLine = null;
+
+            if (message == null)
+            {
+                // Logging an entry with no message is not allowed
+                throw new ArgumentNullException("message");
+            }
+            sr = new StringReader(message);
+            msgLine = sr.ReadLine();
+            logLine = String.Format("{0} {1} {2}",
                 DateTime.UtcNow.ToString("yyyyMMddHHmmssff"),
                 (int)level,
-                SampleString(message));
-
-            Debug.WriteLine(logText);
-            logBlock.Add(logText);
-            if (logBlock.Count >= LOG_BLOCK_MAX)
+                msgLine);
+            Debug.WriteLine(logLine);
+            logBlock.Add(logLine);
+            while (null != (msgLine = sr.ReadLine()))
+            {
+                logLine = String.Format($"                   {msgLine}");
+                Debug.WriteLine(logLine);
+                logBlock.Add(logLine);
+            }
+            if (logBlock.Count >= LOG_BLOCK_NEW)
             {
                 WriteLogBlock();
             }
