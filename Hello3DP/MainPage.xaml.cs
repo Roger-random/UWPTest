@@ -89,35 +89,33 @@ namespace Hello3DP
                             device.DataBits = 8;
                             device.StopBits = SerialStopBitCount.One;
                             device.Parity = SerialParity.None;
+                            device.ReadTimeout = new TimeSpan(0, 0, 1);
+                            device.WriteTimeout = new TimeSpan(0, 0, 2);
 
                             device.IsDataTerminalReadyEnabled = true; // Default is false, apparently required to be true to talk to RAMPS board.
 
                             using (DataReader reader = new DataReader(device.InputStream))
+                            using (DataWriter writer = new DataWriter(device.OutputStream))
                             {
                                 reader.UnicodeEncoding = UnicodeEncoding.Utf8;
                                 reader.InputStreamOptions = InputStreamOptions.ReadAhead;
 
-                                Boolean readmore = true;
-                                int readIndex = -1;
-                                Task[] readtask = new Task[1];
-                                CancellationTokenSource readCancelSrc = new CancellationTokenSource();
-                                while(readmore)
-                                {
-                                    Log("Reading serial input buffer asking for 2K with 1 second timeout.");
-                                    readtask[0] = reader.LoadAsync(2048).AsTask(readCancelSrc.Token);
-                                    readIndex = Task.WaitAny(readtask, 1000);
-                                    if (readIndex == -1)
-                                    {
-                                        readmore = false;
-                                        readCancelSrc.Cancel();
-                                        Log("No serial data for 1 second.");
-                                    }
-                                    else
-                                    {
-                                        string serialdata = reader.ReadString(reader.UnconsumedBufferLength);
-                                        Log($"Retrieved {serialdata.Length} chars. Sample: {serialdata}");
-                                    }
-                                }
+                                Log("Send M115");
+                                writer.UnicodeEncoding = UnicodeEncoding.Utf8;
+                                writer.WriteString("M115\n");
+                                await writer.StoreAsync();
+
+                                Log("2K serial read expecting hello text");
+                                await reader.LoadAsync(2048);
+                                Log($"Retrieved buffer of size {reader.UnconsumedBufferLength}");
+                                string helloText = reader.ReadString(reader.UnconsumedBufferLength);
+                                Log(helloText);
+
+                                device.ReadTimeout = new TimeSpan(0, 0, 5);
+                                Log("2K serial read expecting SD init");
+                                await reader.LoadAsync(2048);
+                                Log($"Retrieved buffer of {reader.UnconsumedBufferLength}");
+                                Log(reader.ReadString(reader.UnconsumedBufferLength));
                             }
                         }
                         else
@@ -129,6 +127,8 @@ namespace Hello3DP
                 catch (Exception e)
                 {
                     Log(e.ToString());
+                    Log(e.Message);
+                    Log(e.StackTrace);
                 }
             }
 
