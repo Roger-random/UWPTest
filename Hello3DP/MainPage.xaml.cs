@@ -97,6 +97,8 @@ namespace Hello3DP
                             using (DataReader reader = new DataReader(device.InputStream))
                             using (DataWriter writer = new DataWriter(device.OutputStream))
                             {
+                                CancellationTokenSource cancelSrc = new CancellationTokenSource(5000); // Cancel after 5 seconds
+
                                 reader.UnicodeEncoding = UnicodeEncoding.Utf8;
                                 reader.InputStreamOptions = InputStreamOptions.ReadAhead;
 
@@ -106,16 +108,20 @@ namespace Hello3DP
                                 await writer.StoreAsync();
 
                                 Log("2K serial read expecting hello text");
-                                await reader.LoadAsync(2048);
-                                Log($"Retrieved buffer of size {reader.UnconsumedBufferLength}");
-                                string helloText = reader.ReadString(reader.UnconsumedBufferLength);
+                                uint loadedSize= await reader.LoadAsync(2048).AsTask<uint>(cancelSrc.Token);
+                                Log($"reader.LoadAsync returned {loadedSize}");
+                                string helloText = reader.ReadString(loadedSize);
                                 Log(helloText);
 
-                                device.ReadTimeout = new TimeSpan(0, 0, 5);
-                                Log("2K serial read expecting SD init");
-                                await reader.LoadAsync(2048);
-                                Log($"Retrieved buffer of {reader.UnconsumedBufferLength}");
-                                Log(reader.ReadString(reader.UnconsumedBufferLength));
+                                int pulseIdx = helloText.IndexOf("Pulse D-224");
+                                if (pulseIdx == -1)
+                                {
+                                    Log("Puse D-224 identifier string not found.", LoggingLevel.Information);
+                                }
+                                else
+                                {
+                                    Log("Pulse D-224 identified.", LoggingLevel.Information);
+                                }
                             }
                         }
                         else
