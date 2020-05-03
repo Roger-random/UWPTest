@@ -97,15 +97,19 @@ namespace Hello3DP
                             using (DataReader reader = new DataReader(device.InputStream))
                             using (DataWriter writer = new DataWriter(device.OutputStream))
                             {
-                                CancellationTokenSource cancelSrc = new CancellationTokenSource(5000); // Cancel after 5 seconds
+                                CancellationTokenSource cancelSrc = new CancellationTokenSource(5000); // Cancel after 5000 milliseconds
 
                                 reader.UnicodeEncoding = UnicodeEncoding.Utf8;
                                 reader.InputStreamOptions = InputStreamOptions.ReadAhead;
 
+                                /* Pulse D-224 sends a chunk of text upon connect, but other printers
+                                 * are silent upon connect and need to be sent a M115 before it will
+                                 * respond with an identification string.
                                 Log("Send M115");
                                 writer.UnicodeEncoding = UnicodeEncoding.Utf8;
                                 writer.WriteString("M115\n");
                                 await writer.StoreAsync();
+                                */
 
                                 Log("2K serial read expecting hello text");
                                 uint loadedSize= await reader.LoadAsync(2048).AsTask<uint>(cancelSrc.Token);
