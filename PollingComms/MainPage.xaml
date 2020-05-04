@@ -8,7 +8,28 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid>
-
-    </Grid>
+    <RelativePanel>
+        <TextBlock x:Name="topLabel"
+                    Text="Polling Serial Communication Test"
+                    FontSize="36"
+                    RelativePanel.AlignTopWithPanel="True"
+                    RelativePanel.AlignLeftWithPanel="True"
+                    RelativePanel.AlignRightWithPanel="True"/>
+        <Grid x:Name="mainPanel"
+              RelativePanel.Below="topLabel">
+            <Button x:Name="connectBtn"
+                    Content="Connect"
+                    Click="connectBtn_Click"/>
+        </Grid>
+        <TextBlock x:Name="activity"
+                   Text="Application starting up"
+                   FontSize="8"
+                   RelativePanel.Above="status"/>
+        <TextBlock x:Name="status"
+                   Text="Awaiting Connect"
+                   FontSize="24"
+                   RelativePanel.AlignBottomWithPanel="True"
+                   RelativePanel.AlignLeftWithPanel="True"
+                   RelativePanel.AlignRightWithPanel="True"/>
+    </RelativePanel>
 </Page>

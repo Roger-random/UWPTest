@@ -26,5 +26,10 @@ namespace PollingComms
         {
             this.InitializeComponent();
         }
+
+        private void connectBtn_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 }
