@@ -22,6 +22,8 @@ namespace PollingComms
     /// </summary>
     sealed partial class App : Application
     {
+        public Logger logger { get; }
+
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
         /// executed, and as such is the logical equivalent of main() or WinMain().
@@ -30,6 +32,8 @@ namespace PollingComms
         {
             this.InitializeComponent();
             this.Suspending += OnSuspending;
+            this.Resuming += OnResuming;
+            this.logger = new Logger();
         }
 
         /// <summary>
@@ -40,6 +44,8 @@ namespace PollingComms
         protected override void OnLaunched(LaunchActivatedEventArgs e)
         {
             Frame rootFrame = Window.Current.Content as Frame;
+            logger.Open();
+            logger.Information("App.OnLaunched");
 
             // Do not repeat app initialization when the Window already has content,
             // just ensure that the window is active
@@ -72,6 +78,18 @@ namespace PollingComms
                 Window.Current.Activate();
             }
         }
+        protected override void OnActivated(IActivatedEventArgs args)
+        {
+            logger.Open();
+            base.OnActivated(args);
+            logger.Information("App.OnActivated");
+        }
+
+        private void OnResuming(object sender, object e)
+        {
+            logger.Open();
+            logger.Information("App.OnResuming");
+        }
 
         /// <summary>
         /// Invoked when Navigation to a certain page fails
@@ -93,7 +111,8 @@ namespace PollingComms
         private void OnSuspending(object sender, SuspendingEventArgs e)
         {
             var deferral = e.SuspendingOperation.GetDeferral();
-            //TODO: Save application state and stop any background activity
+            logger.Information("App.OnSuspending");
+            logger.Close();
             deferral.Complete();
         }
     }
