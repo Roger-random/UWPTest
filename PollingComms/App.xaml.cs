@@ -44,7 +44,7 @@ namespace PollingComms
         protected override void OnLaunched(LaunchActivatedEventArgs e)
         {
             Frame rootFrame = Window.Current.Content as Frame;
-            logger.Open();
+            logger.OpenAsync();
             logger.Information("App.OnLaunched");
 
             // Do not repeat app initialization when the Window already has content,
@@ -80,14 +80,14 @@ namespace PollingComms
         }
         protected override void OnActivated(IActivatedEventArgs args)
         {
-            logger.Open();
+            logger.OpenAsync();
             base.OnActivated(args);
             logger.Information("App.OnActivated");
         }
 
         private void OnResuming(object sender, object e)
         {
-            logger.Open();
+            logger.OpenAsync();
             logger.Information("App.OnResuming");
         }
 

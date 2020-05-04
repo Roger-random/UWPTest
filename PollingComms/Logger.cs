@@ -32,7 +32,7 @@ namespace PollingComms
             recentLogs = new Queue<String>(recentCount);
         }
 
-        public async void Open()
+        public async void OpenAsync()
         {
             if (logFile == null)
             {
