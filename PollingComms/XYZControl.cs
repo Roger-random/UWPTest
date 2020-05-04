@@ -69,24 +69,28 @@ namespace PollingComms
                     int pulseIdx = helloText.IndexOf("Pulse D-224");
                     if (pulseIdx == -1)
                     {
-                        Log("Puse D-224 identifier string not found.", LoggingLevel.Information);
+                        Log($"Puse D-224 identifier string not found from device at.{deviceInfo.Id}", LoggingLevel.Information);
                         Close();
                     }
                     else
                     {
-                        Log("Pulse D-224 identified.", LoggingLevel.Information);
+                        Log($"Pulse D-224 connected successfully at {deviceInfo.Id}", LoggingLevel.Information);
                         opened = true;
                     }
                 }
                 else
                 {
-                    Log($"XYZControl.Open failed since null was returned for {deviceInfo.Id}");
+                    Log($"XYZControl.Open failed since null was returned for {deviceInfo.Id}", LoggingLevel.Information);
                     Close();
                 }
             }
+            catch(TaskCanceledException)
+            {
+                Log($"XYZControl.Open timed out reading from {deviceInfo.Id}", LoggingLevel.Information);
+            }
             catch(Exception e)
             {
-                Log(e.ToString());
+                Log(e.ToString(), LoggingLevel.Error);
                 Close();
             }
 

@@ -11,18 +11,25 @@ namespace PollingComms
     {
         private StorageFile logFile;
 
-        // When we pass this many log entries in a block, make a new block
-        private const int LOG_BLOCK_NEW = 1000;
+        private const int LOG_BLOCK_MAX = 1000;
         private List<String> logBlock;
         private const int LOG_BLOCK_QUEUE_SIZE = 5;
         private Queue<List<String>> logBlockQueue;
 
+        // A subset of recent logs are kept with constrained size and logging level
+        private Queue<String> recentLogs;
+        private LoggingLevel recentLevel;
+        private int recentCount;
 
         public Logger()
         {
             logFile = null;
-            logBlock = new List<String>(LOG_BLOCK_NEW); // May exceed this size occasionally.
+            logBlock = new List<String>(LOG_BLOCK_MAX);
             logBlockQueue = new Queue<List<String>>(LOG_BLOCK_QUEUE_SIZE);
+
+            recentLevel = LoggingLevel.Information;
+            recentCount = 5;
+            recentLogs = new Queue<String>(recentCount);
         }
 
         public async void Open()
@@ -44,6 +51,19 @@ namespace PollingComms
         {
             Log("Closing log file.");
             WriteLogBlock();
+        }
+
+        public string Recent
+        {
+            get
+            {
+                string concat = String.Empty;
+                foreach(String line in recentLogs)
+                {
+                    concat = concat + '\n' + line;
+                }
+                return concat;
+            }
         }
 
         public void Critical(string message)
@@ -74,7 +94,7 @@ namespace PollingComms
         private async void WriteLogBlock()
         {
             List<String> oldBlock = logBlock;
-            logBlock = new List<String>(LOG_BLOCK_NEW);
+            logBlock = new List<String>(LOG_BLOCK_MAX);
             if (logBlockQueue.Count >= LOG_BLOCK_QUEUE_SIZE)
             {
                 // Remove the oldest block of logs
@@ -82,6 +102,25 @@ namespace PollingComms
             }
             logBlockQueue.Enqueue(oldBlock);
             await FileIO.AppendLinesAsync(logFile, oldBlock);
+        }
+
+        private void AddLogLine(string logLine, LoggingLevel level)
+        {
+            Debug.WriteLine(logLine);
+            logBlock.Add(logLine);
+            if (logBlock.Count >= LOG_BLOCK_MAX)
+            {
+                WriteLogBlock();
+            }
+
+            if (level >= recentLevel)
+            {
+                recentLogs.Enqueue(logLine);
+                if (recentLogs.Count > recentCount)
+                {
+                    recentLogs.Dequeue();
+                }
+            }
         }
 
         public void Log(string message, LoggingLevel level = LoggingLevel.Verbose)
@@ -101,17 +140,11 @@ namespace PollingComms
                 DateTime.UtcNow.ToString("yyyyMMddHHmmssff"),
                 (int)level,
                 msgLine);
-            Debug.WriteLine(logLine);
-            logBlock.Add(logLine);
+            AddLogLine(logLine, level);
             while (null != (msgLine = sr.ReadLine()))
             {
                 logLine = String.Format($"                   {msgLine}");
-                Debug.WriteLine(logLine);
-                logBlock.Add(logLine);
-            }
-            if (logBlock.Count >= LOG_BLOCK_NEW)
-            {
-                WriteLogBlock();
+                AddLogLine(logLine, level);
             }
         }
     }

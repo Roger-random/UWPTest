@@ -27,11 +27,24 @@ namespace PollingComms
     public sealed partial class MainPage : Page
     {
         private XYZControl controller;
+        private DispatcherTimer activityPanelUpdateTimer;
 
         public MainPage()
         {
             this.InitializeComponent();
+
             controller = new XYZControl();
+
+            activityPanelUpdateTimer = new DispatcherTimer();
+            activityPanelUpdateTimer.Tick += activityPanelUpdate;
+            activityPanelUpdateTimer.Interval = new TimeSpan(0, 0, 1);
+            activityPanelUpdateTimer.Start();
+        }
+
+        private void activityPanelUpdate(object sender, object e)
+        {
+            activity.Text = ((App)Application.Current).logger.Recent;
+            tbUTCNow.Text = DateTime.UtcNow.ToString("yyyyMMddHHmmssff");
         }
 
         private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
@@ -51,7 +64,7 @@ namespace PollingComms
         {
             if (controller.IsOpen)
             {
-                Log("Disconnecting");
+                Log("Disconnecting", LoggingLevel.Information);
                 controller.Close();
             }
             else
@@ -59,13 +72,12 @@ namespace PollingComms
                 DeviceInformationCollection deviceinfos = await DeviceInformation.FindAllAsync(SerialDevice.GetDeviceSelector());
                 bool deviceConnected = false;
 
-                Log("Attempting to connect...");
+                Log($"Number of serial devices available = {deviceinfos.Count}", LoggingLevel.Information);
                 foreach (DeviceInformation deviceinfo in deviceinfos)
                 {
                     deviceConnected = await controller.Open(deviceinfo);
                     if (deviceConnected)
                     {
-                        Log("Connection successful");
                         break;
                     }
                 }

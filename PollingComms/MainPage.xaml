@@ -15,16 +15,22 @@
                     RelativePanel.AlignTopWithPanel="True"
                     RelativePanel.AlignLeftWithPanel="True"
                     RelativePanel.AlignRightWithPanel="True"/>
-        <Grid x:Name="mainPanel"
+        <StackPanel x:Name="mainPanel"
               RelativePanel.Below="topLabel">
             <Button x:Name="connectBtn"
                     Content="Connect"
                     Click="connectBtn_Click"/>
-        </Grid>
+        </StackPanel>
         <TextBlock x:Name="activity"
-                   Text="Application starting up"
+                   Text="0000000000000000 0 Diagnostic messages panel"
+                   FontFamily="Consolas"
                    FontSize="8"
-                   RelativePanel.Above="status"/>
+                   RelativePanel.Above="tbUTCNow" Padding="4,4,4,0"/>
+        <TextBlock x:Name="tbUTCNow"
+                   Text="0000000000000000"
+                   FontFamily="Consolas"
+                   FontSize="8"
+                   RelativePanel.Above="status" Padding="4,0,4,4"/>
         <TextBlock x:Name="status"
                    Text="Awaiting Connect"
                    FontSize="24"
