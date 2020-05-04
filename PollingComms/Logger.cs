@@ -39,7 +39,7 @@ namespace PollingComms
                 string logFileName = DateTime.UtcNow.ToString("yyyyMMddHHmmssff") + ".log";
                 logFile = await ApplicationData.Current.TemporaryFolder.CreateFileAsync(logFileName,
                     Windows.Storage.CreationCollisionOption.OpenIfExists);
-                Log("Logging begins.");
+                Information("Log file opened.");
             }
             else
             {
@@ -49,7 +49,7 @@ namespace PollingComms
 
         public void Close()
         {
-            Log("Closing log file.");
+            Information("Closing log file.");
             WriteLogBlock();
         }
 
