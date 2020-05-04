@@ -1,10 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using Windows.Devices.Enumeration;
+using Windows.Devices.SerialCommunication;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Foundation.Diagnostics;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -22,14 +26,59 @@ namespace PollingComms
     /// </summary>
     public sealed partial class MainPage : Page
     {
+        private XYZControl controller;
+
         public MainPage()
         {
             this.InitializeComponent();
+            controller = new XYZControl();
         }
 
-        private void connectBtn_Click(object sender, RoutedEventArgs e)
+        private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
         {
+            Logger logger = ((App)Application.Current).logger;
+            if (logger != null)
+            {
+                logger.Log(t, level);
+            }
+            else
+            {
+                Debug.WriteLine("WARNING: Logger not available, log message lost.");
+            }
+        }
 
+        private async void connectBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (controller.IsOpen)
+            {
+                Log("Disconnecting");
+                controller.Close();
+            }
+            else
+            {
+                DeviceInformationCollection deviceinfos = await DeviceInformation.FindAllAsync(SerialDevice.GetDeviceSelector());
+                bool deviceConnected = false;
+
+                Log("Attempting to connect...");
+                foreach (DeviceInformation deviceinfo in deviceinfos)
+                {
+                    deviceConnected = await controller.Open(deviceinfo);
+                    if (deviceConnected)
+                    {
+                        Log("Connection successful");
+                        break;
+                    }
+                }
+            }
+
+            if (controller.IsOpen)
+            {
+                connectBtn.Content = "Disconnect";
+            }
+            else
+            {
+                connectBtn.Content = "Connect";
+            }
         }
     }
 }
