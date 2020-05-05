@@ -45,6 +45,14 @@ namespace PollingComms
         {
             activity.Text = ((App)Application.Current).logger.Recent;
             tbUTCNow.Text = DateTime.UtcNow.ToString("yyyyMMddHHmmssff");
+
+            if (controller != null)
+            {
+                if (!controller.IsOpen)
+                {
+                    connectBtn.Content = "Connect";
+                }
+            }
         }
 
         private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)

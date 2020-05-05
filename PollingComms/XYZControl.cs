@@ -145,7 +145,9 @@ namespace PollingComms
             {
                 if (opened)
                 {
-                    Log(e.ToString(), LoggingLevel.Error);
+                    Log("Read loop terminated due to unexpected loss of communication with device.", LoggingLevel.Error);
+                    Log(e.ToString(), LoggingLevel.Information);
+                    Close();
                 }
                 else
                 {
@@ -162,8 +164,17 @@ namespace PollingComms
                 return;
             }
             Log($"Sending {command}");
-            writer.WriteString($"{command}\n");
-            await writer.StoreAsync();
+            try
+            {
+                writer.WriteString($"{command}\n");
+                await writer.StoreAsync();
+            }
+            catch (Exception e)
+            {
+                Log("Unable to send command due to communication error, closing port.", LoggingLevel.Error);
+                Log(e.ToString(), LoggingLevel.Information);
+                Close();
+            }
         }
 
         public void Home()
