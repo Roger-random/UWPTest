@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Devices.Enumeration;
@@ -20,9 +21,18 @@ namespace PollingComms
 
         private CoreDispatcher dispatcher;
         private SerialDevice device;
-        private DataReader reader;
-        private DataWriter writer;
         private bool opened;
+        private DataWriter writer;
+        private DataReader reader;
+        private DateTime lastReadTime;
+
+        private enum ResponseType
+        {
+            Unknown,            // We don't know how to treat a response yet.
+            Ignore,             // This line is not part of a command response, and can be ignored.
+            BlockPartial,       // This line is part of response for a command, but not the end.
+            BlockEnd            // This line marks the successful end of a block of response.
+        }
 
         public XYZControl()
         {
@@ -122,13 +132,33 @@ namespace PollingComms
             try
             {
                 uint readSize = await reader.LoadAsync(READ_BLOCK_SIZE);
+                lastReadTime = DateTime.UtcNow;
                 if (readSize > 0)
                 {
                     Log($"ReadLoop retrieved {readSize} bytes.");
                     try
                     {
-                        string readText = reader.ReadString(readSize);
-                        Log(readText);
+                        StringReader readText = new StringReader(reader.ReadString(readSize));
+                        string line = null;
+                        ResponseType respType = ResponseType.Unknown;
+
+                        while (null != (line = readText.ReadLine()))
+                        {
+                            respType = ProcessResponseLine(line);
+                            if (respType == ResponseType.BlockPartial)
+                            {
+                                // Add to list and move on.
+                                Log("Add to list and continue");
+                            }
+                            else if (respType == ResponseType.BlockEnd)
+                            {
+                                Log("Dequeue and move on to next command.");
+                            }
+                            else if (respType != ResponseType.Ignore)
+                            {
+                                Log("Unknown response, enter error condition.");
+                            }
+                        }
                     }
                     catch (InvalidOperationException ioe)
                     {
@@ -154,6 +184,34 @@ namespace PollingComms
                     Log("Read loop terminated due to closing port.", LoggingLevel.Information);
                 }
             }
+        }
+
+        private ResponseType ProcessResponseLine(string line)
+        {
+            ResponseType resType = ResponseType.Unknown;
+
+            if (line.StartsWith("echo:busy: processing") ||
+                line.StartsWith("echo:SD "))
+            {
+                Log($"Waiting... {line}");
+                resType = ResponseType.Ignore;
+            }
+            else if (line.StartsWith("X:"))
+            {
+                Log($"TODO: Parse coordinates of {line}");
+                resType = ResponseType.BlockPartial;
+            }
+            else if (line.StartsWith("ok"))
+            {
+                Log($"Successful completion {line}");
+                resType = ResponseType.BlockEnd;
+            }
+            else
+            {
+                Log($"Treat as error: {line}", LoggingLevel.Error);
+            }
+
+            return resType;
         }
 
         private async void SendCommandAsync(string command)
