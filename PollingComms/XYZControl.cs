@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -19,20 +20,22 @@ namespace PollingComms
         const uint READ_TIMEOUT = 200 * TIMESPAN_MILLISECOND;
         const uint WRITE_TIMEOUT = 200 * TIMESPAN_MILLISECOND;
 
+        private enum ResponseType
+        {
+            Unknown,            // We don't know how to treat this response.
+            Ignore,             // This line is not part of a command response, and can be ignored.
+            BlockPartial,       // This line is part of response for a command, but not the end.
+            BlockEnd            // This line marks the successful end of a block of response.
+        }
+
         private CoreDispatcher dispatcher;
         private SerialDevice device;
         private bool opened;
         private DataWriter writer;
         private DataReader reader;
         private DateTime lastReadTime;
-
-        private enum ResponseType
-        {
-            Unknown,            // We don't know how to treat a response yet.
-            Ignore,             // This line is not part of a command response, and can be ignored.
-            BlockPartial,       // This line is part of response for a command, but not the end.
-            BlockEnd            // This line marks the successful end of a block of response.
-        }
+        private Queue<TaskCompletionSource<List<String>>> crQueue;
+        private List<String> responsesSoFar;
 
         public XYZControl()
         {
@@ -41,6 +44,8 @@ namespace PollingComms
             reader = null;
             writer = null;
             opened = false;
+            crQueue = new Queue<TaskCompletionSource<List<String>>>();
+            responsesSoFar = null;
         }
 
         public bool IsOpen
@@ -121,6 +126,15 @@ namespace PollingComms
             await dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadLoop);
         }
 
+        private void AddToResponseList(string line)
+        {
+            if (responsesSoFar==null)
+            {
+                responsesSoFar = new List<String>();
+            }
+            responsesSoFar.Add(line);
+        }
+
         public async void ReadLoop()
         {
             if (reader == null)
@@ -147,16 +161,35 @@ namespace PollingComms
                             respType = ProcessResponseLine(line);
                             if (respType == ResponseType.BlockPartial)
                             {
-                                // Add to list and move on.
-                                Log("Add to list and continue");
+                                AddToResponseList(line);
                             }
                             else if (respType == ResponseType.BlockEnd)
                             {
-                                Log("Dequeue and move on to next command.");
+                                AddToResponseList(line);
+                                if (crQueue.Count > 0)
+                                {
+                                    TaskCompletionSource<List<String>> tcs = crQueue.Dequeue();
+                                    tcs.SetResult(responsesSoFar);
+                                    responsesSoFar = null;
+                                }
+                                else
+                                {
+                                    Log($"No command queued to correspond to response.", LoggingLevel.Error);
+                                    foreach (String lostLine in responsesSoFar)
+                                    {
+                                        Log($"Lost response: {lostLine}", LoggingLevel.Information);
+                                    }
+                                    responsesSoFar.Clear();
+                                }
                             }
-                            else if (respType != ResponseType.Ignore)
+                            else if (respType == ResponseType.Ignore)
                             {
-                                Log("Unknown response, enter error condition.");
+                                Log($"Ignoring {line}");
+                            }
+                            else
+                            {
+                                Log($"Shutting down due to unexpected response {line}", LoggingLevel.Error);
+                                Close();
                             }
                         }
                     }
@@ -193,7 +226,6 @@ namespace PollingComms
             if (line.StartsWith("echo:busy: processing") ||
                 line.StartsWith("echo:SD "))
             {
-                Log($"Waiting... {line}");
                 resType = ResponseType.Ignore;
             }
             else if (line.StartsWith("X:"))
@@ -203,51 +235,78 @@ namespace PollingComms
             }
             else if (line.StartsWith("ok"))
             {
-                Log($"Successful completion {line}");
                 resType = ResponseType.BlockEnd;
-            }
-            else
-            {
-                Log($"Treat as error: {line}", LoggingLevel.Error);
             }
 
             return resType;
         }
 
-        private async void SendCommandAsync(string command)
+        private async void WriterStore(string command)
         {
+            writer.WriteString($"{command}\n");
+            await writer.StoreAsync();
+        }
+
+        private Task<List<String>> SendCommandAsync(string command)
+        {
+            TaskCompletionSource<List<String>> taskCompletionSource = new TaskCompletionSource<List<String>>();
+
             if (writer == null)
             {
                 Log($"No DataWriter available to send {command}", LoggingLevel.Error);
-                return;
+                taskCompletionSource.SetCanceled();
             }
-            Log($"Sending {command}");
+            else
+            {
+                Log($"Sending {command}");
+                try
+                {
+                    WriterStore(command);
+                    crQueue.Enqueue(taskCompletionSource);
+                }
+                catch (Exception e)
+                {
+                    Log("Unable to send command due to communication error, closing port.", LoggingLevel.Error);
+                    Log(e.ToString(), LoggingLevel.Information);
+                    Close();
+                    taskCompletionSource.SetException(e);
+                }
+            }
+
+            return taskCompletionSource.Task;
+        }
+
+        private async void SendCommandWaitResponseAsync(string command)
+        {
+            List<String> responses;
+
             try
             {
-                writer.WriteString($"{command}\n");
-                await writer.StoreAsync();
+                responses = await SendCommandAsync(command);
+                foreach (String line in responses)
+                {
+                    Log($"{command} response {line}");
+                }
             }
-            catch (Exception e)
+            catch(TaskCanceledException)
             {
-                Log("Unable to send command due to communication error, closing port.", LoggingLevel.Error);
-                Log(e.ToString(), LoggingLevel.Information);
-                Close();
+                Log($"No response due to cancellation of {command}");
             }
         }
 
         public void Home()
         {
-            SendCommandAsync("G28");
+            SendCommandWaitResponseAsync("G28");
         }
 
         public void MiddleIsh()
         {
-            SendCommandAsync("G1 X125 Y125 Z125 F8000");
+            SendCommandWaitResponseAsync("G1 X125 Y125 Z125 F8000");
         }
 
         public void GetPos()
         {
-            SendCommandAsync("M114");
+            SendCommandWaitResponseAsync("M114");
         }
 
         public void Close()
@@ -268,6 +327,11 @@ namespace PollingComms
                 device.Dispose();
                 device = null;
             }
+            foreach(TaskCompletionSource<List<String>> tcs in crQueue)
+            {
+                tcs.SetCanceled();
+            }
+            crQueue.Clear();
         }
         private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
         {
