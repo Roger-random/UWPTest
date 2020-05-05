@@ -6,12 +6,16 @@ using Windows.Devices.Enumeration;
 using Windows.Devices.SerialCommunication;
 using Windows.Foundation.Diagnostics;
 using Windows.Storage.Streams;
+using Windows.UI.Core;
 using Windows.UI.Xaml;
 
 namespace PollingComms
 {
     class XYZControl
     {
+        const uint READ_BLOCK_SIZE = 4096;
+
+        private CoreDispatcher dispatcher;
         private SerialDevice device;
         private DataReader reader;
         private DataWriter writer;
@@ -19,6 +23,7 @@ namespace PollingComms
 
         public XYZControl()
         {
+            dispatcher = null;
             device = null;
             reader = null;
             writer = null;
@@ -47,8 +52,8 @@ namespace PollingComms
                     device.DataBits = 8;
                     device.StopBits = SerialStopBitCount.One;
                     device.Parity = SerialParity.None;
-                    device.ReadTimeout = new TimeSpan(0, 0, 1);
-                    device.WriteTimeout = new TimeSpan(0, 0, 2);
+                    device.ReadTimeout = new TimeSpan(1000000);
+                    device.WriteTimeout = new TimeSpan(1000000);
 
                     device.IsDataTerminalReadyEnabled = true; // Default is false, apparently required to be true to talk to RAMPS board.
 
@@ -60,8 +65,8 @@ namespace PollingComms
                     reader.InputStreamOptions = InputStreamOptions.ReadAhead;
 
                     CancellationTokenSource cancelSrc = new CancellationTokenSource(5000); // Cancel after 5000 milliseconds
-                    Log("4K serial read expecting hello text");
-                    uint loadedSize = await reader.LoadAsync(4096).AsTask<uint>(cancelSrc.Token);
+                    Log($"Serial read {READ_BLOCK_SIZE} expecting hello text");
+                    uint loadedSize = await reader.LoadAsync(READ_BLOCK_SIZE).AsTask<uint>(cancelSrc.Token);
                     Log($"reader.LoadAsync returned {loadedSize}");
                     string helloText = reader.ReadString(loadedSize);
                     Log(helloText);
@@ -95,6 +100,67 @@ namespace PollingComms
             }
 
             return opened;
+        }
+
+        public void BeginReadLoop(CoreDispatcher uiDispatcher)
+        {
+            dispatcher = uiDispatcher;
+            dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadLoop);
+        }
+
+        public async void ReadLoop()
+        {
+            if (reader == null)
+            {
+                Log("No DataReader available for ReadLoop to work, exiting.", LoggingLevel.Error);
+                return;
+            }
+
+            uint readSize = await reader.LoadAsync(READ_BLOCK_SIZE);
+            if (readSize > 0)
+            {
+                Log($"ReadLoop retrieved {readSize} bytes.");
+                try
+                {
+                    string readText = reader.ReadString(readSize);
+                    Log(readText);
+                }
+                catch(InvalidOperationException ioe)
+                {
+                    Log(ioe.ToString(), LoggingLevel.Error);
+                }
+            }
+
+            if (dispatcher != null)
+            {
+                dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadLoop);
+            }
+        }
+
+        private async void SendCommandAsync(string command)
+        {
+            if (writer == null)
+            {
+                Log($"No DataWriter available to send {command}", LoggingLevel.Error);
+                return;
+            }
+            writer.WriteString(command);
+            await writer.StoreAsync();
+        }
+
+        public void Home()
+        {
+            SendCommandAsync("G28\n");
+        }
+
+        public void MiddleIsh()
+        {
+            SendCommandAsync("G1 X125 Y125 Z125 F8000\n");
+        }
+
+        public void GetPos()
+        {
+            SendCommandAsync("M114\n");
         }
 
         public void Close()

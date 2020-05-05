@@ -78,6 +78,7 @@ namespace PollingComms
                     deviceConnected = await controller.Open(deviceinfo);
                     if (deviceConnected)
                     {
+                        controller.BeginReadLoop(Dispatcher);
                         break;
                     }
                 }
@@ -91,6 +92,21 @@ namespace PollingComms
             {
                 connectBtn.Content = "Connect";
             }
+        }
+
+        private void homeBtn_Click(object sender, RoutedEventArgs e)
+        {
+            controller.Home();
+        }
+
+        private void getPosBtn_Click(object sender, RoutedEventArgs e)
+        {
+            controller.GetPos();
+        }
+
+        private void middishBtn_Click(object sender, RoutedEventArgs e)
+        {
+            controller.MiddleIsh();
         }
     }
 }

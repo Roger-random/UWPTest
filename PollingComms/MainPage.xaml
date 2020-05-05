@@ -20,6 +20,15 @@
             <Button x:Name="connectBtn"
                     Content="Connect"
                     Click="connectBtn_Click"/>
+            <Button x:Name="homeBtn"
+                    Content="Home (G28)"
+                    Click="homeBtn_Click"/>
+            <Button x:Name="getPosBtn"
+                    Content="Get Position (M114)"
+                    Click="getPosBtn_Click"/>
+            <Button x:Name="middishBtn"
+                    Content="Go to middle-ish"
+                    Click="middishBtn_Click"/>
         </StackPanel>
         <TextBlock x:Name="activity"
                    Text="0000000000000000 0 Diagnostic messages panel"
