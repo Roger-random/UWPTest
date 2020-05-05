@@ -14,6 +14,9 @@ namespace PollingComms
     class XYZControl
     {
         const uint READ_BLOCK_SIZE = 4096;
+        const uint TIMESPAN_MILLISECOND = 10000; // 100 nanoseconds * 10000 = 1ms
+        const uint READ_TIMEOUT = 200 * TIMESPAN_MILLISECOND;
+        const uint WRITE_TIMEOUT = 200 * TIMESPAN_MILLISECOND;
 
         private CoreDispatcher dispatcher;
         private SerialDevice device;
@@ -52,8 +55,8 @@ namespace PollingComms
                     device.DataBits = 8;
                     device.StopBits = SerialStopBitCount.One;
                     device.Parity = SerialParity.None;
-                    device.ReadTimeout = new TimeSpan(1000000);
-                    device.WriteTimeout = new TimeSpan(1000000);
+                    device.ReadTimeout = new TimeSpan(READ_TIMEOUT);
+                    device.WriteTimeout = new TimeSpan(WRITE_TIMEOUT);
 
                     device.IsDataTerminalReadyEnabled = true; // Default is false, apparently required to be true to talk to RAMPS board.
 
