@@ -102,10 +102,10 @@ namespace PollingComms
             return opened;
         }
 
-        public void BeginReadLoop(CoreDispatcher uiDispatcher)
+        public async void BeginReadAsync(CoreDispatcher uiDispatcher)
         {
             dispatcher = uiDispatcher;
-            dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadLoop);
+            await dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadLoop);
         }
 
         public async void ReadLoop()
@@ -116,24 +116,38 @@ namespace PollingComms
                 return;
             }
 
-            uint readSize = await reader.LoadAsync(READ_BLOCK_SIZE);
-            if (readSize > 0)
+            try
             {
-                Log($"ReadLoop retrieved {readSize} bytes.");
-                try
+                uint readSize = await reader.LoadAsync(READ_BLOCK_SIZE);
+                if (readSize > 0)
                 {
-                    string readText = reader.ReadString(readSize);
-                    Log(readText);
+                    Log($"ReadLoop retrieved {readSize} bytes.");
+                    try
+                    {
+                        string readText = reader.ReadString(readSize);
+                        Log(readText);
+                    }
+                    catch (InvalidOperationException ioe)
+                    {
+                        Log(ioe.ToString(), LoggingLevel.Error);
+                    }
                 }
-                catch(InvalidOperationException ioe)
+
+                if (dispatcher != null)
                 {
-                    Log(ioe.ToString(), LoggingLevel.Error);
+                    await dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadLoop);
                 }
             }
-
-            if (dispatcher != null)
+            catch (Exception e)
             {
-                dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadLoop);
+                if (opened)
+                {
+                    Log(e.ToString(), LoggingLevel.Error);
+                }
+                else
+                {
+                    Log("Read loop terminated due to closing port.", LoggingLevel.Information);
+                }
             }
         }
 
@@ -144,28 +158,30 @@ namespace PollingComms
                 Log($"No DataWriter available to send {command}", LoggingLevel.Error);
                 return;
             }
-            writer.WriteString(command);
+            Log($"Sending {command}");
+            writer.WriteString($"{command}\n");
             await writer.StoreAsync();
         }
 
         public void Home()
         {
-            SendCommandAsync("G28\n");
+            SendCommandAsync("G28");
         }
 
         public void MiddleIsh()
         {
-            SendCommandAsync("G1 X125 Y125 Z125 F8000\n");
+            SendCommandAsync("G1 X125 Y125 Z125 F8000");
         }
 
         public void GetPos()
         {
-            SendCommandAsync("M114\n");
+            SendCommandAsync("M114");
         }
 
         public void Close()
         {
-            if(writer != null)
+            opened = false;
+            if (writer != null)
             {
                 writer.Dispose();
                 writer = null;
@@ -180,7 +196,6 @@ namespace PollingComms
                 device.Dispose();
                 device = null;
             }
-            opened = false;
         }
         private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
         {

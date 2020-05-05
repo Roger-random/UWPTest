@@ -78,7 +78,7 @@ namespace PollingComms
                     deviceConnected = await controller.Open(deviceinfo);
                     if (deviceConnected)
                     {
-                        controller.BeginReadLoop(Dispatcher);
+                        controller.BeginReadAsync(Dispatcher);
                         break;
                     }
                 }
