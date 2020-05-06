@@ -53,6 +53,8 @@ namespace PollingComms
                     connectBtn.Content = "Connect";
                 }
             }
+
+            tbPosition.Text = $"X: {controller.X,8:N2} Y: {controller.Y,8:N2} Z: {controller.Z,8:N2}";
         }
 
         private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)

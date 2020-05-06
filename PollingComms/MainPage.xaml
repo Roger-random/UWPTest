@@ -17,6 +17,10 @@
                     RelativePanel.AlignRightWithPanel="True"/>
         <StackPanel x:Name="mainPanel"
               RelativePanel.Below="topLabel">
+            <TextBlock x:Name="tbPosition"
+                       Text="X: ?? Y: ?? Z: ??"
+                       FontFamily="Consolas"
+                       FontSize="24"/>
             <Button x:Name="connectBtn"
                     Content="Connect"
                     Click="connectBtn_Click"/>

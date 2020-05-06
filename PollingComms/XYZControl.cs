@@ -36,6 +36,10 @@ namespace PollingComms
         private DateTime lastReadTime;
         private Queue<TaskCompletionSource<List<String>>> crQueue;
         private List<String> responsesSoFar;
+        private double positionX;
+        private double positionY;
+        private double positionZ;
+
 
         public XYZControl()
         {
@@ -53,6 +57,30 @@ namespace PollingComms
             get
             {
                 return opened;
+            }
+        }
+
+        public double X
+        {
+            get
+            {
+                return positionX;
+            }
+        }
+
+        public double Y
+        {
+            get
+            {
+                return positionY;
+            }
+        }
+
+        public double Z
+        {
+            get
+            {
+                return positionZ;
             }
         }
 
@@ -219,6 +247,30 @@ namespace PollingComms
             }
         }
 
+        private bool ParseCoordinates(string line)
+        {
+            string[] components = line.Split(new char[] { ' ', ':' }, StringSplitOptions.RemoveEmptyEntries);
+            if (components.Length >= 6 &&
+                components[0].ToUpperInvariant() == "X" &&
+                components[2].ToUpperInvariant() == "Y" &&
+                components[4].ToUpperInvariant() == "Z")
+            {
+                try
+                {
+                    positionX = double.Parse(components[1]);
+                    positionY = double.Parse(components[3]);
+                    positionZ = double.Parse(components[5]);
+
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    Log($"Error encountered trying to parse as coordinate: {line}", LoggingLevel.Error);
+                }
+            }
+            return false;
+        }
+
         private ResponseType ProcessResponseLine(string line)
         {
             ResponseType resType = ResponseType.Unknown;
@@ -228,9 +280,8 @@ namespace PollingComms
             {
                 resType = ResponseType.Ignore;
             }
-            else if (line.StartsWith("X:"))
+            else if (ParseCoordinates(line))
             {
-                Log($"TODO: Parse coordinates of {line}");
                 resType = ResponseType.BlockPartial;
             }
             else if (line.StartsWith("ok"))
