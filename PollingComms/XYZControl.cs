@@ -266,6 +266,7 @@ namespace PollingComms
                 catch (Exception e)
                 {
                     Log($"Error encountered trying to parse as coordinate: {line}", LoggingLevel.Error);
+                    Log(e.ToString());
                 }
             }
             return false;
