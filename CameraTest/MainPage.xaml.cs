@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
+using Windows.Devices.Enumeration;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Foundation.Diagnostics;
@@ -65,6 +66,17 @@ namespace CameraTest
 
         protected async override void OnNavigatedTo(NavigationEventArgs e)
         {
+            DeviceInformationCollection devices = await DeviceInformation.FindAllAsync(DeviceClass.VideoCapture);
+            Log($"Found {devices.Count} VideoCapture devices");
+
+            foreach (var device in devices)
+            {
+                Log($"DeviceClass.VideoCapture");
+                Log($"  Name = {device.Name}");
+                Log($"  ID = {device.Id}");
+                Log($"  Video Profiles Supported = {MediaCapture.IsVideoProfileSupported(device.Id)}");
+            }
+
             await StartPreviewAsync();
         }
 
