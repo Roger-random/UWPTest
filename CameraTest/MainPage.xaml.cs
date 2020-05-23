@@ -12,6 +12,7 @@ using Windows.Foundation.Collections;
 using Windows.Foundation.Diagnostics;
 using Windows.Graphics.Display;
 using Windows.Media.Capture;
+using Windows.System;
 using Windows.System.Display;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -140,6 +141,26 @@ namespace CameraTest
                 mediaCapture = null;
                 Log("MediaCapture Disposed");
             });
+        }
+
+        private void PreviewControl_KeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            Log($"Key Down {e.Key}");
+        }
+
+        private void PreviewControl_KeyUp(object sender, KeyRoutedEventArgs e)
+        {
+            Log($"Key Up {e.Key}");
+        }
+
+        private void PreviewControl_PointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            Log($"Pointer Pressed {e.GetCurrentPoint(sender as UIElement).Position}");
+        }
+
+        private void PreviewControl_PointerReleased(object sender, PointerRoutedEventArgs e)
+        {
+            Log($"Pointer Released {e.GetCurrentPoint(sender as UIElement).Position}");
         }
     }
 }
