@@ -21,3 +21,5 @@ sender of command via use of
 Includes: rudimentary code to handle situations like USB unplugging. If not
 entirely gracefully, at least not crash & burn.
 Includes: rudimentary parsing of XYZ coordinates.
+3. __CameraTest__ : Test app to show live webcam footage by following instructions in
+[Display the camera preview](https://docs.microsoft.com/en-us/windows/uwp/audio-video-camera/simple-camera-preview-access).
