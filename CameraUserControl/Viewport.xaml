@@ -10,7 +10,12 @@
     d:DesignWidth="400">
 
     <Grid>
-        <Ellipse Fill="Red"/>
-        <Rectangle Stroke="Blue"/>
+        <Ellipse x:Name="circleOut" Stroke="White"/>
+        <Ellipse x:Name="circleMid" Stroke="Black"/>
+        <Ellipse x:Name="circleIn" Stroke="White"/>
+        <Polygon x:Name="crosshairL" Stroke="White" Fill="Black"/>
+        <Polygon x:Name="crosshairR" Stroke="White" Fill="Black"/>
+        <Polygon x:Name="crosshairU" Stroke="White" Fill="Black"/>
+        <Polygon x:Name="crosshairD" Stroke="White" Fill="Black"/>
     </Grid>
 </UserControl>
