@@ -7,6 +7,7 @@ using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Foundation.Diagnostics;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -22,6 +23,7 @@ namespace CameraUserControl
     /// </summary>
     sealed partial class App : Application
     {
+        public Logger logger { get; }
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
         /// executed, and as such is the logical equivalent of main() or WinMain().
@@ -30,6 +32,8 @@ namespace CameraUserControl
         {
             this.InitializeComponent();
             this.Suspending += OnSuspending;
+            this.Resuming += OnResuming;
+            this.logger = new Logger();
         }
 
         /// <summary>
@@ -40,6 +44,9 @@ namespace CameraUserControl
         protected override void OnLaunched(LaunchActivatedEventArgs e)
         {
             Frame rootFrame = Window.Current.Content as Frame;
+
+            logger.OpenAsync();
+            logger.Log("App.OnLaunched", LoggingLevel.Information);
 
             // Do not repeat app initialization when the Window already has content,
             // just ensure that the window is active
@@ -73,6 +80,19 @@ namespace CameraUserControl
             }
         }
 
+        protected override void OnActivated(IActivatedEventArgs args)
+        {
+            logger.OpenAsync();
+            base.OnActivated(args);
+            logger.Log("App.OnActivated", LoggingLevel.Information);
+        }
+
+        protected void OnResuming(object sender, object e)
+        {
+            logger.OpenAsync();
+            logger.Log("App.OnResuming", LoggingLevel.Information);
+        }
+
         /// <summary>
         /// Invoked when Navigation to a certain page fails
         /// </summary>
@@ -93,7 +113,8 @@ namespace CameraUserControl
         private void OnSuspending(object sender, SuspendingEventArgs e)
         {
             var deferral = e.SuspendingOperation.GetDeferral();
-            //TODO: Save application state and stop any background activity
+            logger.Log("App.OnSuspending", LoggingLevel.Information);
+            logger.Close();
             deferral.Complete();
         }
     }
