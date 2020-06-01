@@ -8,7 +8,9 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid>
-
+    <Grid xmlns:src="using:CameraUserControl">
+        <src:Viewport
+            IsTabStop="True"
+            TabIndex="0"/>
     </Grid>
 </Page>

@@ -10,6 +10,7 @@
     d:DesignWidth="400">
 
     <Grid>
-
+        <Ellipse Fill="Red"/>
+        <Rectangle Stroke="Blue"/>
     </Grid>
 </UserControl>
