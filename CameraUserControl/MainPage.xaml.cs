@@ -27,6 +27,14 @@ namespace CameraUserControl
         private DispatcherTimer activityUpdateTimer;
         private Logger logger = null;
 
+        public PeripheralStatus CameraStatus
+        {
+            get
+            {
+                return psCamera;
+            }
+        }
+
         public MainPage()
         {
             this.InitializeComponent();

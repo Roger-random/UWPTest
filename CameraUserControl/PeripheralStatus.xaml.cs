@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -22,6 +23,30 @@ namespace CameraUserControl
         public PeripheralStatus()
         {
             this.InitializeComponent();
+        }
+
+        public Windows.UI.Color StatusColor
+        {
+            get
+            {
+                return ((SolidColorBrush)btnConnect.Background).Color;
+            }
+            set
+            {
+                btnConnect.Background = new SolidColorBrush(value);
+            }
+        }
+
+        public string Label
+        {
+            get
+            {
+                return tbLabel.Text;
+            }
+            set
+            {
+                tbLabel.Text = value;
+            }
         }
     }
 }

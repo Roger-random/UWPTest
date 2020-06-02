@@ -27,7 +27,7 @@
                    FontSize="36"
                    HorizontalAlignment="Right"/>
         <StackPanel Grid.Row="1" Grid.Column="0">
-            <src:PeripheralStatus/>
+            <src:PeripheralStatus x:Name="psCamera"/>
             <src:PeripheralStatus/>
         </StackPanel>
         <src:Viewport

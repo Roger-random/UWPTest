@@ -7,6 +7,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Foundation.Diagnostics;
+using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -21,10 +22,23 @@ namespace CameraUserControl
 {
     public sealed partial class Viewport : UserControl
     {
+        private PeripheralStatus cameraStatus = null;
+
         public Viewport()
         {
             this.InitializeComponent();
+            this.Loaded += Viewport_Loaded;
             this.SizeChanged += Viewport_SizeChanged;
+        }
+
+        private void Viewport_Loaded(object sender, RoutedEventArgs e)
+        {
+            Frame rootFrame = Window.Current.Content as Windows.UI.Xaml.Controls.Frame;
+            MainPage mainPage = rootFrame.Content as MainPage;
+
+            cameraStatus = mainPage.CameraStatus;
+
+            cameraStatus.Label = "Camera";
         }
 
         private void Viewport_SizeChanged(object sender, SizeChangedEventArgs e)

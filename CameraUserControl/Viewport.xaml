@@ -19,5 +19,6 @@
         <Polygon x:Name="crosshairR" Stroke="White" Fill="Black"/>
         <Polygon x:Name="crosshairU" Stroke="White" Fill="Black"/>
         <Polygon x:Name="crosshairD" Stroke="White" Fill="Black"/>
+        <CaptureElement Name="cameraPreview" Stretch="Uniform"/>
     </Grid>
 </UserControl>

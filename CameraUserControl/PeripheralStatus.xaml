@@ -23,10 +23,11 @@
                 Grid.Row="0" Grid.Column="0"
                 MinWidth="48" MinHeight="48"
                 HorizontalAlignment="Center"
-                Background="Green"
+                Background="Gray"
                 VerticalAlignment="Center">
         </Button>
-        <TextBlock Grid.Row="0" Grid.Column="1"
+        <TextBlock x:Name="tbLabel"
+                   Grid.Row="0" Grid.Column="1"
                    HorizontalAlignment="Left"
                    VerticalAlignment="Center"
                    FontSize="24"

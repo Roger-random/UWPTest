@@ -87,7 +87,7 @@ namespace CameraUserControl
             logger.Log("App.OnActivated", LoggingLevel.Information);
         }
 
-        protected void OnResuming(object sender, object e)
+        private void OnResuming(object sender, object e)
         {
             logger.OpenAsync();
             logger.Log("App.OnResuming", LoggingLevel.Information);
