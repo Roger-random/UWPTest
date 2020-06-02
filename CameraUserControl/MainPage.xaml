@@ -22,7 +22,7 @@
                    Text="Camera User Control Test Application"
                    FontSize="48" HorizontalAlignment="Left"/>
         <TextBlock Grid.Row="0" Grid.Column="1"
-                   Text=":)"
+                   Text="[Logo]"
                    FontSize="48"
                    HorizontalAlignment="Right"/>
         <StackPanel Grid.Row="1" Grid.Column="0">
@@ -32,6 +32,7 @@
         <src:Viewport
             Grid.Row="1"
             Grid.Column="1"
+            Margin="4"
             IsTabStop="True"
             TabIndex="0"/>
     </Grid>

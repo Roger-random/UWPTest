@@ -10,6 +10,8 @@
     d:DesignWidth="400">
 
     <Grid>
+        <Rectangle Stroke="White" StrokeThickness="3"
+                   RadiusX="12" RadiusY="12"/>
         <Ellipse x:Name="circleOut" Stroke="White"/>
         <Ellipse x:Name="circleMid" Stroke="Black"/>
         <Ellipse x:Name="circleIn" Stroke="White"/>
