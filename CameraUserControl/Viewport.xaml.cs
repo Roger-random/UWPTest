@@ -83,7 +83,14 @@ namespace CameraUserControl
 
         private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
         {
-            Logger logger = ((App)Application.Current).logger;
+            App app = Application.Current as App;
+
+            if (app == null)
+            {
+                // This occurs in design mode.
+                return;
+            }
+            Logger logger = app.logger;
             if (logger != null)
             {
                 logger.Log(t, level);

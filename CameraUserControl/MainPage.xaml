@@ -9,7 +9,29 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid xmlns:src="using:CameraUserControl">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="3*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="8*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                   Text="Camera User Control Test Application"
+                   FontSize="48" HorizontalAlignment="Left"/>
+        <TextBlock Grid.Row="0" Grid.Column="1"
+                   Text=":)"
+                   FontSize="48"
+                   HorizontalAlignment="Right"/>
+        <StackPanel Grid.Row="1" Grid.Column="0">
+            <src:PeripheralStatus/>
+            <src:PeripheralStatus/>
+        </StackPanel>
         <src:Viewport
+            Grid.Row="1"
+            Grid.Column="1"
             IsTabStop="True"
             TabIndex="0"/>
     </Grid>
