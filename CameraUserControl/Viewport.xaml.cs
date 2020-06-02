@@ -83,7 +83,7 @@ namespace CameraUserControl
             }
         }
 
-        private void Viewport_Loaded(object sender, RoutedEventArgs e)
+        private async void Viewport_Loaded(object sender, RoutedEventArgs e)
         {
             // Find the camera status indicator
             Frame rootFrame = Window.Current.Content as Windows.UI.Xaml.Controls.Frame;
@@ -93,11 +93,6 @@ namespace CameraUserControl
 
             cameraStatus.Label = "Camera";
 
-            EnumerateCameras();
-        }
-
-        private async void EnumerateCameras()
-        {
             // Get list of cameras on this device
             cameraCollection = await DeviceInformation.FindAllAsync(DeviceClass.VideoCapture);
             Log($"Found {cameraCollection.Count} VideoCapture devices");
@@ -112,6 +107,8 @@ namespace CameraUserControl
             {
                 cameraStatus.StatusText = "No cameras found";
             }
+
+            await ToggleCameraState();
         }
 
         private async void StatusButton_Click(object sender, RoutedEventArgs e)
