@@ -10,8 +10,8 @@
     d:DesignWidth="400">
 
     <Grid>
-        <Rectangle Stroke="White" StrokeThickness="3"
-                   RadiusX="12" RadiusY="12"/>
+        <CaptureElement Name="cameraPreview" Stretch="Uniform"/>
+        <Rectangle Stroke="White" StrokeThickness="3"/>
         <Ellipse x:Name="circleOut" Stroke="White"/>
         <Ellipse x:Name="circleMid" Stroke="Black"/>
         <Ellipse x:Name="circleIn" Stroke="White"/>
@@ -19,6 +19,5 @@
         <Polygon x:Name="crosshairR" Stroke="White" Fill="Black"/>
         <Polygon x:Name="crosshairU" Stroke="White" Fill="Black"/>
         <Polygon x:Name="crosshairD" Stroke="White" Fill="Black"/>
-        <CaptureElement Name="cameraPreview" Stretch="Uniform"/>
     </Grid>
 </UserControl>

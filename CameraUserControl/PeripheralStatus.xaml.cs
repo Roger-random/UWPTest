@@ -37,6 +37,26 @@ namespace CameraUserControl
             }
         }
 
+        public Button StatusButton
+        {
+            get
+            {
+                return btnConnect;
+            }
+        }
+
+        public string StatusText
+        {
+            get
+            {
+                return tbStatus.Text;
+            }
+            set
+            {
+                tbStatus.Text = value;
+            }
+        }
+
         public string Label
         {
             get
