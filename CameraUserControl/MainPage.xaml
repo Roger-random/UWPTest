@@ -15,15 +15,16 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="8*"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                    Text="Camera User Control Test Application"
-                   FontSize="48" HorizontalAlignment="Left"/>
+                   FontSize="36" HorizontalAlignment="Left"/>
         <TextBlock Grid.Row="0" Grid.Column="1"
                    Text="[Logo]"
-                   FontSize="48"
+                   FontSize="36"
                    HorizontalAlignment="Right"/>
         <StackPanel Grid.Row="1" Grid.Column="0">
             <src:PeripheralStatus/>
@@ -35,5 +36,17 @@
             Margin="4"
             IsTabStop="True"
             TabIndex="0"/>
+        <TextBlock x:Name="tbLogging"
+                   Grid.Row="2" Grid.ColumnSpan="2"
+                   FontFamily="Consolas"
+                   FontSize="8"
+                   Padding="4,4,4,0"
+                   Text="0000000000000000 ...awaiting startup..."/>
+        <TextBlock x:Name="tbClock"
+                   Grid.Row="3" Grid.ColumnSpan="2"
+                   FontFamily="Consolas"
+                   FontSize="8"
+                   Padding="4,0,4,4"
+                   Text="0000000000000000"/>
     </Grid>
 </Page>

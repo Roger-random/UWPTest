@@ -21,17 +21,19 @@
         </Grid.RowDefinitions>
         <Button x:Name="btnConnect"
                 Grid.Row="0" Grid.Column="0"
+                MinWidth="48" MinHeight="48"
                 HorizontalAlignment="Center"
+                Background="Green"
                 VerticalAlignment="Center">
-            <Rectangle Fill="Green" Stretch="UniformToFill"/>
         </Button>
         <TextBlock Grid.Row="0" Grid.Column="1"
-                   HorizontalAlignment="Center"
+                   HorizontalAlignment="Left"
                    VerticalAlignment="Center"
                    FontSize="24"
                    Text="Peripheral"/>
         <Button x:Name="btnAction"
                 Grid.Row="0" Grid.Column="2"
+                MinWidth="48" MinHeight="48"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 IsEnabled="False"
