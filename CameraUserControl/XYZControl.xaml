@@ -1,0 +1,106 @@
+﻿<UserControl
+    x:Class="CameraUserControl.XYZControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:CameraUserControl"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    d:DesignHeight="300"
+    d:DesignWidth="400">
+
+    <Grid Margin="4">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock Padding="4" Grid.Column="0" Grid.Row="0"
+                   HorizontalAlignment="Center" VerticalAlignment="Top" FontSize="18"
+                   Foreground="Gray"
+                   Text="X"/>
+        <TextBlock x:Name="tbXcoord" 
+                   Padding="4" Grid.Column="0" Grid.Row="0"
+                   HorizontalAlignment="Center" VerticalAlignment="Bottom" FontSize="18" FontFamily="Consolas"
+                   Text="?.??"/>
+        <TextBlock Padding="4" Grid.Column="1" Grid.Row="0"
+                   HorizontalAlignment="Center" VerticalAlignment="Top" FontSize="18"
+                   Foreground="Gray"
+                   Text="Y"/>
+        <TextBlock x:Name="tbYcoord"
+                   Padding="4" Grid.Column="1" Grid.Row="0"
+                   HorizontalAlignment="Center" VerticalAlignment="Bottom" FontSize="18" FontFamily="Consolas"
+                   Text="?.??"/>
+        <TextBlock Padding="4" Grid.Column="2" Grid.Row="0"
+                   HorizontalAlignment="Center" VerticalAlignment="Top" FontSize="18"
+                   Foreground="Gray"
+                   Text="Z"/>
+        <TextBlock x:Name="tbZcoord"
+                   Padding="4" Grid.Column="2" Grid.Row="0"
+                   HorizontalAlignment="Center" VerticalAlignment="Bottom" FontSize="18" FontFamily="Consolas"
+                   Text="?.??"/>
+        <Button x:Name="btnHome"
+                Margin="4" Grid.Column="3" Grid.Row="0"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Orientation="Vertical">
+                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE80F;"/>
+                <TextBlock Text="Home"/>
+            </StackPanel>
+        </Button>
+        <Button x:Name="btnXPos"
+                Margin="4" Grid.Column="2" Grid.Row="2"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="X+"/>
+                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDA;"/>
+            </StackPanel>
+        </Button>
+        <Button x:Name="btnXNeg"
+                Margin="4" Grid.Column="0" Grid.Row="2"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal">
+                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDD9;"/>
+                <TextBlock Text="X-"/>
+            </StackPanel>
+        </Button>
+        <Button x:Name="btnYPos"
+                Margin="4" Grid.Column="1" Grid.Row="1"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Orientation="Vertical">
+                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDB;"/>
+                <TextBlock Text="Y+"/>
+            </StackPanel>
+        </Button>
+        <Button x:Name="btnYNeg"
+                Margin="4" Grid.Column="1" Grid.Row="3"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Orientation="Vertical">
+                <TextBlock Text="Y-"/>
+                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDC;"/>
+            </StackPanel>
+        </Button>
+        <Button x:Name="btnZPos"
+                Margin="4" Grid.Column="3" Grid.Row="1"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Orientation="Vertical">
+                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDB;"/>
+                <TextBlock Text="Z+"/>
+            </StackPanel>
+        </Button>
+        <Button x:Name="btnZNeg"
+                Margin="4" Grid.Column="3" Grid.Row="3"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Orientation="Vertical">
+                <TextBlock Text="Z-"/>
+                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDC;"/>
+            </StackPanel>
+        </Button>
+    </Grid>
+</UserControl>

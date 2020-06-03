@@ -130,6 +130,9 @@
     <Compile Include="Viewport.xaml.cs">
       <DependentUpon>Viewport.xaml</DependentUpon>
     </Compile>
+    <Compile Include="XYZControl.xaml.cs">
+      <DependentUpon>XYZControl.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
@@ -160,6 +163,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Viewport.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="XYZControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

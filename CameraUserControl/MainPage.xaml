@@ -22,13 +22,13 @@
         <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                    Text="Camera User Control Test Application"
                    FontSize="36" HorizontalAlignment="Left"/>
-        <TextBlock Grid.Row="0" Grid.Column="1"
-                   Text="[Logo]"
-                   FontSize="36"
-                   HorizontalAlignment="Right"/>
+        <FontIcon  FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="36" Glyph="&#xEB3C;"
+                   Grid.Row="0" Grid.Column="1"
+                   HorizontalAlignment="Right" Margin="4"/>
         <StackPanel Grid.Row="1" Grid.Column="0">
             <src:PeripheralStatus x:Name="psCamera"/>
-            <src:PeripheralStatus/>
+            <src:PeripheralStatus x:Name="psXYZ"/>
+            <src:XYZControl x:Name="xyzControl"/>
         </StackPanel>
         <src:Viewport
             Grid.Row="1"
