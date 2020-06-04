@@ -64,6 +64,8 @@ namespace CameraUserControl
 
         private double moveStep = 10;
 
+        private DispatcherTimer updateTargetCoordinateTimer;
+
         public XYZControl()
         {
             this.InitializeComponent();
@@ -78,6 +80,16 @@ namespace CameraUserControl
             opened = false;
             crQueue = new Queue<TaskCompletionSource<List<String>>>();
             responsesSoFar = null;
+
+            updateTargetCoordinateTimer = new DispatcherTimer();
+            updateTargetCoordinateTimer.Tick += UpdateTargetCoordinateTimer_Tick;
+            updateTargetCoordinateTimer.Interval = new TimeSpan(0, 0, 0, 0, 250);
+            updateTargetCoordinateTimer.Start();
+        }
+
+        private void UpdateTargetCoordinateTimer_Tick(object sender, object e)
+        {
+            ExecuteMoveToTarget();
         }
 
         public PeripheralStatus StatusControl
@@ -108,7 +120,7 @@ namespace CameraUserControl
             }
         }
 
-        public (double, double, double) Coordinates
+        public (double, double, double) Position
         {
             get
             {
@@ -121,7 +133,7 @@ namespace CameraUserControl
             }
         }
 
-        private async Task<bool> ValidateAndMove(double tX, double tY, double tZ)
+        private bool ValidateAndMove(double tX, double tY, double tZ)
         {
             if (tX >= 0 && tX <= 200)
             {
@@ -134,11 +146,7 @@ namespace CameraUserControl
                             targetX = tX;
                             targetY = tY;
                             targetZ = tZ;
-                            if (!haveNewTarget)
-                            {
-                                haveNewTarget = true;
-                                await dispatcher.RunAsync(CoreDispatcherPriority.Low, ExecuteMoveToTarget);
-                            }
+                            haveNewTarget = true;
                             return true;
                         }
                     }
@@ -147,26 +155,14 @@ namespace CameraUserControl
             return false;
         }
 
-        public async void ExecuteMoveToTarget()
+        public void ExecuteMoveToTarget()
         {
             if (haveNewTarget)
             {
-                double myX = targetX;
-                double myY = targetY;
-                double myZ = targetZ;
-                SendCommandWaitResponseAsync($"G1 X{myX} Y{myY} Z{myZ} F12000");
+                SendCommandWaitResponseAsync($"G1 X{targetX} Y{targetY} Z{targetZ} F12000");
                 SendCommandWaitResponseAsync("M114"); // Update coordinates
 
-                // Has targetX/Y/Z moved again while we were executing this move?
-                if (myX != targetX || myY != targetY || myZ != targetZ)
-                {
-                    Log("Target changed during move, requeing move task.");
-                    await dispatcher.RunAsync(CoreDispatcherPriority.Low, ExecuteMoveToTarget);
-                }
-                else
-                {
-                    haveNewTarget = false;
-                }
+                haveNewTarget = false;
             }
             return;
         }
@@ -513,9 +509,9 @@ namespace CameraUserControl
             HomingCycle();
         }
 
-        private async void ValidateAndMoveDelta(double deltaX, double deltaY, double deltaZ)
+        private void ValidateAndMoveDelta(double deltaX, double deltaY, double deltaZ)
         {
-            await ValidateAndMove(targetX + deltaX, targetY + deltaY, targetZ + deltaZ);
+            ValidateAndMove(targetX + deltaX, targetY + deltaY, targetZ + deltaZ);
         }
 
         private void btnXPos_Click(object sender, RoutedEventArgs e)

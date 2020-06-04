@@ -54,6 +54,7 @@ namespace CameraUserControl
         private void MainPage_Loaded(object sender, RoutedEventArgs e)
         {
             xyzControl.StatusControl = psXYZ;
+            viewport.XYZControl = xyzControl;
         }
 
         private void ActivityUpdateTimer_Tick(object sender, object e)

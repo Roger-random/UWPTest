@@ -15,6 +15,7 @@ using Windows.Media.Capture;
 using Windows.System.Display;
 using Windows.UI;
 using Windows.UI.Core;
+using Windows.UI.Input;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -35,6 +36,13 @@ namespace CameraUserControl
         private DisplayRequest displayRequest = new DisplayRequest();
         private DeviceInformationCollection cameraCollection;
         private int nextCamera = 0;
+
+        private bool pointerDown = false;
+        private uint pointerDownId;
+        private double pointerDownX, pointerDownY;
+        private double referenceX, referenceY, referenceZ;
+
+        public XYZControl XYZControl { get; set; }
 
         public Viewport()
         {
@@ -203,27 +211,42 @@ namespace CameraUserControl
             }
         }
 
-        protected override void OnKeyDown(KeyRoutedEventArgs e)
-        {
-            Log("Viewport.OnKeyDown");
-            base.OnKeyDown(e);
-        }
-
-        protected override void OnKeyUp(KeyRoutedEventArgs e)
-        {
-            Log("Viewport.OnKeyUp");
-            base.OnKeyUp(e);
-        }
-
         protected override void OnPointerPressed(PointerRoutedEventArgs e)
         {
             Log("Viewport.OnPointerPressed");
+            if (XYZControl != null && !pointerDown)
+            {
+                pointerDownId = e.Pointer.PointerId;
+                pointerDown = true;
+                PointerPoint ptrPt = e.GetCurrentPoint(null);
+                pointerDownX = ptrPt.Position.X;
+                pointerDownY = ptrPt.Position.Y;
+
+                (referenceX, referenceY, referenceZ) = XYZControl.Position;
+            }
             base.OnPointerPressed(e);
+        }
+
+        protected override void OnPointerMoved(PointerRoutedEventArgs e)
+        {
+            if (XYZControl != null && pointerDown && pointerDownId == e.Pointer.PointerId)
+            {
+                PointerPoint ptrPt = e.GetCurrentPoint(null);
+                double deltaX = pointerDownX - ptrPt.Position.X;
+                double deltaY = ptrPt.Position.Y - pointerDownY;
+                double multiplier = 0.1;
+
+                XYZControl.Position = (referenceX + (multiplier * deltaX),
+                                       referenceY + (multiplier * deltaY),
+                                       referenceZ);
+            }
+            base.OnPointerMoved(e);
         }
 
         protected override void OnPointerReleased(PointerRoutedEventArgs e)
         {
             Log("Viewport.OnPointerReleased");
+            pointerDown = false;
             base.OnPointerReleased(e);
         }
     }

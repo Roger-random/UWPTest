@@ -31,6 +31,7 @@
             <src:XYZControl TabIndex="0" x:Name="xyzControl"/>
         </StackPanel>
         <src:Viewport
+            x:Name="viewport"
             Grid.Row="1"
             Grid.Column="1"
             Padding="4"/>
