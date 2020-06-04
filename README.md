@@ -23,3 +23,8 @@ entirely gracefully, at least not crash & burn.
 Includes: rudimentary parsing of XYZ coordinates.
 3. __CameraTest__ : Test app to show live webcam footage by following instructions in
 [Display the camera preview](https://docs.microsoft.com/en-us/windows/uwp/audio-video-camera/simple-camera-preview-access).
+4. __CameraUserControl__ : Creating custom user controls so they could receive
+keyboard and mouse events for interactivity. Combines the 3D printer control
+logic of __PollingComms__ with the camera preview of __CameraTest__ and
+put them in an interactive application so we could navigate X/Y/Z space while
+watching camera feedback.
