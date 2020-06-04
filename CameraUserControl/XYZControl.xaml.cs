@@ -56,6 +56,10 @@ namespace CameraUserControl
         private double positionX;
         private double positionY;
         private double positionZ;
+        private double targetX;
+        private double targetY;
+        private double targetZ;
+        private bool haveNewTarget = false;
 
         public XYZControl()
         {
@@ -99,6 +103,69 @@ namespace CameraUserControl
                     Close();
                 }
             }
+        }
+
+        public (double, double, double) Coordinates
+        {
+            get
+            {
+                return (positionX, positionY, positionZ);
+            }
+            set
+            {
+                (double tX, double tY, double tZ) = value;
+                _ = ValidateAndMove(tX, tY, tZ);
+            }
+        }
+
+        private async Task<bool> ValidateAndMove(double tX, double tY, double tZ)
+        {
+            if (tX >= 0 && tX <= 200)
+            {
+                if (tY >= 0 && tY <= 200)
+                {
+                    if (tZ >= 0 && tZ <= 200)
+                    {
+                        if (tX != positionX || tY != positionY || tZ != positionZ)
+                        {
+                            targetX = tX;
+                            targetY = tY;
+                            targetZ = tZ;
+                            if (!haveNewTarget)
+                            {
+                                haveNewTarget = true;
+                                await dispatcher.RunAsync(CoreDispatcherPriority.Low, ExecuteMoveToTarget);
+                            }
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        public async void ExecuteMoveToTarget()
+        {
+            if (haveNewTarget)
+            {
+                double myX = targetX;
+                double myY = targetY;
+                double myZ = targetZ;
+                SendCommandWaitResponseAsync($"G1 X{myX} Y{myY} Z{myZ} F12000");
+                SendCommandWaitResponseAsync("M114"); // Update coordinates
+
+                // Has targetX/Y/Z moved again while we were executing this move?
+                if (myX != targetX || myY != targetY || myZ != targetZ)
+                {
+                    Log("Target changed during move, requeing move task.");
+                    await dispatcher.RunAsync(CoreDispatcherPriority.Low, ExecuteMoveToTarget);
+                }
+                else
+                {
+                    haveNewTarget = false;
+                }
+            }
+            return;
         }
 
         private async void Connect()
@@ -413,10 +480,6 @@ namespace CameraUserControl
                 Log($"No response due to cancellation of {command}");
             }
         }
-        public void GetPosition()
-        {
-            SendCommandWaitResponseAsync("M114");
-        }
 
         private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
         {
@@ -439,6 +502,36 @@ namespace CameraUserControl
         private void btnHome_Click(object sender, RoutedEventArgs e)
         {
             SendCommandWaitResponseAsync("G28");
+        }
+
+        private async void btnXPos_Click(object sender, RoutedEventArgs e)
+        {
+            await ValidateAndMove(targetX+10, targetY, targetZ);
+        }
+
+        private async void btnXNeg_Click(object sender, RoutedEventArgs e)
+        {
+            await ValidateAndMove(targetX-10, targetY, targetZ);
+        }
+
+        private async void btnYPos_Click(object sender, RoutedEventArgs e)
+        {
+            await ValidateAndMove(targetX, targetY+10, targetZ);
+        }
+
+        private async void btnYNeg_Click(object sender, RoutedEventArgs e)
+        {
+            await ValidateAndMove(targetX, targetY-10, targetZ);
+        }
+
+        private async void btnZPos_Click(object sender, RoutedEventArgs e)
+        {
+            await ValidateAndMove(targetX, targetY, targetZ+10);
+        }
+
+        private async void btnZNeg_Click(object sender, RoutedEventArgs e)
+        {
+            await ValidateAndMove(targetX, targetY, targetZ-10);
         }
     }
 }

@@ -55,49 +55,55 @@
                 <TextBlock Text="Home"/>
             </StackPanel>
         </Button>
-        <Button x:Name="btnXPos"
-                Margin="4" Grid.Column="2" Grid.Row="2"
-                HorizontalAlignment="Center" VerticalAlignment="Center">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="X+"/>
-                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDA;"/>
-            </StackPanel>
-        </Button>
-        <Button x:Name="btnXNeg"
-                Margin="4" Grid.Column="0" Grid.Row="2"
-                HorizontalAlignment="Center" VerticalAlignment="Center">
-            <StackPanel Orientation="Horizontal">
-                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDD9;"/>
-                <TextBlock Text="X-"/>
-            </StackPanel>
-        </Button>
         <Button x:Name="btnYPos"
                 Margin="4" Grid.Column="1" Grid.Row="1"
-                HorizontalAlignment="Center" VerticalAlignment="Center">
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Click="btnYPos_Click">
             <StackPanel Orientation="Vertical">
                 <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDB;"/>
                 <TextBlock Text="Y+"/>
             </StackPanel>
         </Button>
-        <Button x:Name="btnYNeg"
-                Margin="4" Grid.Column="1" Grid.Row="3"
-                HorizontalAlignment="Center" VerticalAlignment="Center">
-            <StackPanel Orientation="Vertical">
-                <TextBlock Text="Y-"/>
-                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDC;"/>
-            </StackPanel>
-        </Button>
         <Button x:Name="btnZPos"
                 Margin="4" Grid.Column="3" Grid.Row="1"
-                HorizontalAlignment="Center" VerticalAlignment="Center">
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Click="btnZPos_Click">
             <StackPanel Orientation="Vertical">
                 <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDB;"/>
                 <TextBlock Text="Z+"/>
             </StackPanel>
         </Button>
+        <Button x:Name="btnXNeg"
+                Margin="4" Grid.Column="0" Grid.Row="2"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Click="btnXNeg_Click">
+            <StackPanel Orientation="Horizontal">
+                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDD9;"/>
+                <TextBlock Text="X-"/>
+            </StackPanel>
+        </Button>
+        <Button x:Name="btnXPos"
+                Margin="4" Grid.Column="2" Grid.Row="2"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Click="btnXPos_Click">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="X+"/>
+                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDA;"/>
+            </StackPanel>
+        </Button>
+        <Button x:Name="btnYNeg"
+                Margin="4" Grid.Column="1" Grid.Row="3"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Click="btnYNeg_Click">
+            <StackPanel Orientation="Vertical">
+                <TextBlock Text="Y-"/>
+                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDC;"/>
+            </StackPanel>
+        </Button>
         <Button x:Name="btnZNeg"
                 Margin="4" Grid.Column="3" Grid.Row="3"
-                HorizontalAlignment="Center" VerticalAlignment="Center">
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Click="btnZNeg_Click">
             <StackPanel Orientation="Vertical">
                 <TextBlock Text="Z-"/>
                 <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEDDC;"/>
