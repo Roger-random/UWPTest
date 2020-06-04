@@ -175,55 +175,12 @@ namespace CameraUserControl
 
         private void Viewport_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            PointCollection crosshairPoints;
-            double centerHeight = e.NewSize.Height / 2.0;
-            double centerWidth = e.NewSize.Width / 2.0;
-            double circleDiameter = 0;
+            double circleDiameter = 10;
+            double circleWidth = 1;
 
-            double crosshairWidth = 1;
-            double crosshairGap = 0.025;
-            double circleFraction = 0.2;
-
-            if (e.NewSize.Height > e.NewSize.Width)
-            {
-                circleDiameter = e.NewSize.Width * circleFraction;
-            }
-            else
-            {
-                circleDiameter = e.NewSize.Height * circleFraction;
-            }
-
-            circleIn.Width = circleIn.Height = circleDiameter - (crosshairWidth*2);
+            circleIn.Width = circleIn.Height = circleDiameter - (circleWidth*2);
             circleMid.Width = circleMid.Height = circleDiameter;
-            circleOut.Width = circleOut.Height = circleDiameter + (crosshairWidth*2);
-
-            crosshairPoints = new PointCollection();
-            crosshairPoints.Add(new Point(0, centerHeight - crosshairWidth));
-            crosshairPoints.Add(new Point(centerWidth * (1 - crosshairGap), centerHeight - crosshairWidth));
-            crosshairPoints.Add(new Point(centerWidth * (1 - crosshairGap), centerHeight + crosshairWidth));
-            crosshairPoints.Add(new Point(0, centerHeight + crosshairWidth));
-            crosshairL.Points = crosshairPoints;
-
-            crosshairPoints = new PointCollection();
-            crosshairPoints.Add(new Point(e.NewSize.Width, centerHeight - crosshairWidth));
-            crosshairPoints.Add(new Point(centerWidth * (1 + crosshairGap), centerHeight - crosshairWidth));
-            crosshairPoints.Add(new Point(centerWidth * (1 + crosshairGap), centerHeight + crosshairWidth));
-            crosshairPoints.Add(new Point(e.NewSize.Width, centerHeight + crosshairWidth));
-            crosshairR.Points = crosshairPoints;
-
-            crosshairPoints = new PointCollection();
-            crosshairPoints.Add(new Point(centerWidth - crosshairWidth, 0));
-            crosshairPoints.Add(new Point(centerWidth - crosshairWidth, centerHeight * (1 - crosshairGap)));
-            crosshairPoints.Add(new Point(centerWidth + crosshairWidth, centerHeight * (1 - crosshairGap)));
-            crosshairPoints.Add(new Point(centerWidth + crosshairWidth, 0));
-            crosshairU.Points = crosshairPoints;
-
-            crosshairPoints = new PointCollection();
-            crosshairPoints.Add(new Point(centerWidth - crosshairWidth, e.NewSize.Height));
-            crosshairPoints.Add(new Point(centerWidth - crosshairWidth, centerHeight * (1 + crosshairGap)));
-            crosshairPoints.Add(new Point(centerWidth + crosshairWidth, centerHeight * (1 + crosshairGap)));
-            crosshairPoints.Add(new Point(centerWidth + crosshairWidth, e.NewSize.Height));
-            crosshairD.Points = crosshairPoints;
+            circleOut.Width = circleOut.Height = circleDiameter + (circleWidth*2);
         }
 
         private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
