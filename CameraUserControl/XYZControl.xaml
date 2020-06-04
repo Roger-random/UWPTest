@@ -48,7 +48,8 @@
                    Text="?.??"/>
         <Button x:Name="btnHome"
                 Margin="4" Grid.Column="3" Grid.Row="0"
-                HorizontalAlignment="Center" VerticalAlignment="Center">
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Click="btnHome_Click">
             <StackPanel Orientation="Vertical">
                 <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE80F;"/>
                 <TextBlock Text="Home"/>

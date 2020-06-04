@@ -38,6 +38,7 @@ namespace CameraUserControl
         public MainPage()
         {
             this.InitializeComponent();
+            this.Loaded += MainPage_Loaded;
 
             activityUpdateTimer = new DispatcherTimer();
             activityUpdateTimer.Tick += ActivityUpdateTimer_Tick;
@@ -48,6 +49,11 @@ namespace CameraUserControl
             {
                 logger = ((App)Application.Current).logger;
             }
+        }
+
+        private void MainPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            xyzControl.StatusControl = psXYZ;
         }
 
         private void ActivityUpdateTimer_Tick(object sender, object e)
