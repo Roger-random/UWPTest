@@ -28,14 +28,12 @@
         <StackPanel Grid.Row="1" Grid.Column="0">
             <src:PeripheralStatus x:Name="psCamera"/>
             <src:PeripheralStatus x:Name="psXYZ"/>
-            <src:XYZControl x:Name="xyzControl"/>
+            <src:XYZControl TabIndex="0" x:Name="xyzControl"/>
         </StackPanel>
         <src:Viewport
             Grid.Row="1"
             Grid.Column="1"
-            Padding="4"
-            IsTabStop="True"
-            TabIndex="0"/>
+            Padding="4"/>
         <TextBlock x:Name="tbLogging"
                    Grid.Row="2" Grid.ColumnSpan="2"
                    FontFamily="Consolas"

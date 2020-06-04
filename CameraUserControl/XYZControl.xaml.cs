@@ -12,6 +12,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Storage.Streams;
+using Windows.System;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -60,6 +61,8 @@ namespace CameraUserControl
         private double targetY;
         private double targetZ;
         private bool haveNewTarget = false;
+
+        private double moveStep = 10;
 
         public XYZControl()
         {
@@ -499,39 +502,94 @@ namespace CameraUserControl
             Close();
         }
 
-        private void btnHome_Click(object sender, RoutedEventArgs e)
+        private void HomingCycle()
         {
             SendCommandWaitResponseAsync("G28");
+            targetX = targetY = targetZ = 0;
         }
 
-        private async void btnXPos_Click(object sender, RoutedEventArgs e)
+        private void btnHome_Click(object sender, RoutedEventArgs e)
         {
-            await ValidateAndMove(targetX+10, targetY, targetZ);
+            HomingCycle();
         }
 
-        private async void btnXNeg_Click(object sender, RoutedEventArgs e)
+        private async void ValidateAndMoveDelta(double deltaX, double deltaY, double deltaZ)
         {
-            await ValidateAndMove(targetX-10, targetY, targetZ);
+            await ValidateAndMove(targetX + deltaX, targetY + deltaY, targetZ + deltaZ);
         }
 
-        private async void btnYPos_Click(object sender, RoutedEventArgs e)
+        private void btnXPos_Click(object sender, RoutedEventArgs e)
         {
-            await ValidateAndMove(targetX, targetY+10, targetZ);
+            ValidateAndMoveDelta(moveStep, 0, 0);
         }
 
-        private async void btnYNeg_Click(object sender, RoutedEventArgs e)
+        private void btnXNeg_Click(object sender, RoutedEventArgs e)
         {
-            await ValidateAndMove(targetX, targetY-10, targetZ);
+            ValidateAndMoveDelta(-moveStep, 0, 0);
         }
 
-        private async void btnZPos_Click(object sender, RoutedEventArgs e)
+        private void btnYPos_Click(object sender, RoutedEventArgs e)
         {
-            await ValidateAndMove(targetX, targetY, targetZ+10);
+            ValidateAndMoveDelta( 0, moveStep, 0);
         }
 
-        private async void btnZNeg_Click(object sender, RoutedEventArgs e)
+        private void btnYNeg_Click(object sender, RoutedEventArgs e)
         {
-            await ValidateAndMove(targetX, targetY, targetZ-10);
+            ValidateAndMoveDelta(0, -moveStep, 0);
         }
+
+        private void btnZPos_Click(object sender, RoutedEventArgs e)
+        {
+            ValidateAndMoveDelta(0, 0, moveStep);
+        }
+
+        private void btnZNeg_Click(object sender, RoutedEventArgs e)
+        {
+            ValidateAndMoveDelta(0, 0, -moveStep);
+        }
+
+        protected override void OnKeyDown(KeyRoutedEventArgs e)
+        {
+            Log("XYZControl.OnKeyDown");
+            switch (e.Key)
+            {
+                case VirtualKey.Home:
+                    HomingCycle();
+                    e.Handled = true;
+                    break;
+                case VirtualKey.Up:
+                    ValidateAndMoveDelta(0, moveStep, 0);
+                    e.Handled = true;
+                    break;
+                case VirtualKey.Down:
+                    ValidateAndMoveDelta(0, -moveStep, 0);
+                    e.Handled = true;
+                    break;
+                case VirtualKey.Right:
+                    ValidateAndMoveDelta(moveStep, 0, 0);
+                    e.Handled = true;
+                    break;
+                case VirtualKey.Left:
+                    ValidateAndMoveDelta(-moveStep, 0, 0);
+                    e.Handled = true;
+                    break;
+                case VirtualKey.PageUp:
+                    ValidateAndMoveDelta(0, 0, moveStep);
+                    e.Handled = true;
+                    break;
+                case VirtualKey.PageDown:
+                    ValidateAndMoveDelta(0, 0, -moveStep);
+                    e.Handled = true;
+                    break;
+            }
+
+            base.OnKeyDown(e);
+        }
+        protected override void OnKeyUp(KeyRoutedEventArgs e)
+        {
+            Log("XYZControl.OnKeyUp");
+            base.OnKeyUp(e);
+        }
+
     }
 }
