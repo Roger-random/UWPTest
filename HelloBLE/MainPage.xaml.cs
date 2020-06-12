@@ -79,42 +79,6 @@ namespace HelloBLE
         {
             BluetoothLEAdvertisement advertisement = args.Advertisement;
 
-            Log($"Bluetooth LE Advertisement name={advertisement.LocalName} flags={advertisement.Flags}");
-            foreach (BluetoothLEAdvertisementDataSection ads in advertisement.DataSections)
-            {
-                DataReader dr = DataReader.FromBuffer(ads.Data);
-                Byte[] dataArray = new Byte[ads.Data.Capacity];
-                dr.ReadBytes(dataArray);
-                string dataDump = $"Data type 0x{ads.DataType:x} 0x";
-                foreach (Byte d in dataArray)
-                {
-                    dataDump = dataDump + $"{d:x2}";
-                }
-                Log(dataDump);
-            }
-            foreach (BluetoothLEManufacturerData md in advertisement.ManufacturerData)
-            {
-                DataReader dr = DataReader.FromBuffer(md.Data);
-                Byte[] dataArray = new Byte[md.Data.Capacity];
-                dr.ReadBytes(dataArray);
-                string dataDump = $"Manufacturer ID 0x{md.CompanyId:x}";
-                if (md.Data.Length > 0)
-                {
-                    dataDump += " data 0x";
-                    foreach (Byte d in dataArray)
-                    {
-                        dataDump = dataDump + $"{d:x2}";
-                    }
-                }
-                Log(dataDump);
-            }
-            foreach (Guid guid in advertisement.ServiceUuids)
-            {
-                Log($"Service {guid}");
-            }
-
-            /*
-
             if (tryConnecting)
             {
                 Log("Ignoring advertisement, connection attempt already underway.");
@@ -126,19 +90,41 @@ namespace HelloBLE
                 tryConnecting = true;
                 Log($"SY289 heard at Bluetooth address {args.BluetoothAddress:x}");
                 device = await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
+                connected = true;
                 Log($"Device with ID {device.DeviceId} acquired.");
                 GattDeviceServicesResult getGattServices = await device.GetGattServicesAsync();
                 if (GattCommunicationStatus.Success == getGattServices.Status)
                 {
                     foreach (GattDeviceService service in getGattServices.Services)
                     {
-                        Log($"Retrieved service UUID 0x{service.Uuid:x}");
+                        Log($"  Service {service.Uuid}");
                         GattCharacteristicsResult getCharacteristics = await service.GetCharacteristicsAsync();
                         if (GattCommunicationStatus.Success == getCharacteristics.Status)
                         {
                             foreach (GattCharacteristic characteristic in getCharacteristics.Characteristics)
                             {
-                                Log($"Retrieved characteristic {characteristic.Uuid:x} property {characteristic.CharacteristicProperties}");
+                                Log($"    Characteristic {characteristic.Uuid} property {characteristic.CharacteristicProperties}");
+                                GattDescriptorsResult getDescriptors = await characteristic.GetDescriptorsAsync();
+                                if (GattCommunicationStatus.Success == getDescriptors.Status)
+                                {
+                                    foreach (GattDescriptor descriptor in getDescriptors.Descriptors)
+                                    {
+                                        GattReadResult readResult = await descriptor.ReadValueAsync();
+                                        DataReader dr = DataReader.FromBuffer(readResult.Value);
+                                        Byte[] dataArray = new Byte[readResult.Value.Capacity];
+                                        dr.ReadBytes(dataArray);
+                                        string dataDump = $"      Descriptor {descriptor.Uuid} value 0x";
+                                        foreach (Byte d in dataArray)
+                                        {
+                                            dataDump += $"{d:x2}";
+                                        }
+                                        Log(dataDump);
+                                    }
+                                }
+                                else
+                                {
+                                    Log($"Getting GATT descriptors failed with status {getDescriptors.Status}");
+                                }
                             }
                         }
                         else
@@ -157,7 +143,6 @@ namespace HelloBLE
             {
                 Log($"Ignoring BLE advertisement from device (not Sylvac indicator) {advertisement.LocalName}");
             }
-            */
         }
     }
 }
