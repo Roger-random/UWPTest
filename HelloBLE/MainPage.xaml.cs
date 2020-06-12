@@ -10,6 +10,7 @@ using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Foundation.Diagnostics;
+using Windows.Storage.Streams;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -78,6 +79,42 @@ namespace HelloBLE
         {
             BluetoothLEAdvertisement advertisement = args.Advertisement;
 
+            Log($"Bluetooth LE Advertisement name={advertisement.LocalName} flags={advertisement.Flags}");
+            foreach (BluetoothLEAdvertisementDataSection ads in advertisement.DataSections)
+            {
+                DataReader dr = DataReader.FromBuffer(ads.Data);
+                Byte[] dataArray = new Byte[ads.Data.Capacity];
+                dr.ReadBytes(dataArray);
+                string dataDump = $"Data type 0x{ads.DataType:x} 0x";
+                foreach (Byte d in dataArray)
+                {
+                    dataDump = dataDump + $"{d:x2}";
+                }
+                Log(dataDump);
+            }
+            foreach (BluetoothLEManufacturerData md in advertisement.ManufacturerData)
+            {
+                DataReader dr = DataReader.FromBuffer(md.Data);
+                Byte[] dataArray = new Byte[md.Data.Capacity];
+                dr.ReadBytes(dataArray);
+                string dataDump = $"Manufacturer ID 0x{md.CompanyId:x}";
+                if (md.Data.Length > 0)
+                {
+                    dataDump += " data 0x";
+                    foreach (Byte d in dataArray)
+                    {
+                        dataDump = dataDump + $"{d:x2}";
+                    }
+                }
+                Log(dataDump);
+            }
+            foreach (Guid guid in advertisement.ServiceUuids)
+            {
+                Log($"Service {guid}");
+            }
+
+            /*
+
             if (tryConnecting)
             {
                 Log("Ignoring advertisement, connection attempt already underway.");
@@ -120,6 +157,7 @@ namespace HelloBLE
             {
                 Log($"Ignoring BLE advertisement from device (not Sylvac indicator) {advertisement.LocalName}");
             }
+            */
         }
     }
 }
