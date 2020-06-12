@@ -4,6 +4,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using Windows.Devices.Bluetooth;
+using Windows.Devices.Bluetooth.Advertisement;
+using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Foundation.Diagnostics;
@@ -26,6 +29,9 @@ namespace HelloBLE
     {
         private DispatcherTimer activityUpdateTimer;
         private Logger logger = null;
+        private bool tryConnecting = false;
+        private bool connected = false;
+        private BluetoothLEDevice device = null;
 
         public MainPage()
         {
@@ -56,6 +62,63 @@ namespace HelloBLE
             else
             {
                 Debug.WriteLine("WARNING: Logger not available, log message lost.");
+            }
+        }
+
+        private void btnBLEAdWatch_Click(object sender, RoutedEventArgs e)
+        {
+            BluetoothLEAdvertisementWatcher watcher = new BluetoothLEAdvertisementWatcher();
+            Log("Advertisement Watcher created");
+            watcher.Received += Watcher_Received;
+            watcher.Start();
+            Log("Advertisement Watcher started");
+        }
+
+        private async void Watcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
+        {
+            BluetoothLEAdvertisement advertisement = args.Advertisement;
+
+            if (tryConnecting)
+            {
+                Log("Ignoring advertisement, connection attempt already underway.");
+                return;
+            }
+
+            if (advertisement.LocalName == "SY289")
+            {
+                tryConnecting = true;
+                Log($"SY289 heard at Bluetooth address {args.BluetoothAddress:x}");
+                device = await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
+                Log($"Device with ID {device.DeviceId} acquired.");
+                GattDeviceServicesResult getGattServices = await device.GetGattServicesAsync();
+                if (GattCommunicationStatus.Success == getGattServices.Status)
+                {
+                    foreach (GattDeviceService service in getGattServices.Services)
+                    {
+                        Log($"Retrieved service UUID 0x{service.Uuid:x}");
+                        GattCharacteristicsResult getCharacteristics = await service.GetCharacteristicsAsync();
+                        if (GattCommunicationStatus.Success == getCharacteristics.Status)
+                        {
+                            foreach (GattCharacteristic characteristic in getCharacteristics.Characteristics)
+                            {
+                                Log($"Retrieved characteristic {characteristic.Uuid:x} property {characteristic.CharacteristicProperties}");
+                            }
+                        }
+                        else
+                        {
+                            Log($"Getting GATT characteristics failed with status {getCharacteristics.Status}");
+                        }
+                    }
+                }
+                else
+                {
+                    Log($"Getting GATT services failed with status {getGattServices.Status}");
+                }
+
+            }
+            else
+            {
+                Log($"Ignoring BLE advertisement from device (not Sylvac indicator) {advertisement.LocalName}");
             }
         }
     }

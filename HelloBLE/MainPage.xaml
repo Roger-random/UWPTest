@@ -19,6 +19,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <TextBlock Grid.Column="0" Grid.Row="0" FontSize="24" Text="BLE Test application"/>
+        <Button x:Name="btnBLEAdWatch" Grid.Column="0" Grid.Row="1" Content="Add BLE Watcher" Click="btnBLEAdWatch_Click"/>
         <TextBlock x:Name="tbLogging"
                    Grid.Row="2"
                    FontFamily="Consolas"
