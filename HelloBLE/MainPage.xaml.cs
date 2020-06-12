@@ -32,7 +32,9 @@ namespace HelloBLE
         private Logger logger = null;
         private bool tryConnecting = false;
         private bool connected = false;
+        private bool dumping = false;
         private BluetoothLEDevice device = null;
+        private UInt32 pause = 0;
 
         public MainPage()
         {
@@ -48,10 +50,68 @@ namespace HelloBLE
                 logger = ((App)Application.Current).logger;
             }
         }
-        private void ActivityUpdateTimer_Tick(object sender, object e)
+        private async void ActivityUpdateTimer_Tick(object sender, object e)
         {
             tbLogging.Text = logger.Recent;
             tbClock.Text = DateTime.UtcNow.ToString("yyyyMMddHHmmssff");
+
+            if (connected && !dumping)
+            {
+                if (pause < 8)
+                {
+                    pause++;
+                    return;
+                }
+                dumping = true;
+                Log("-- -- -- --");
+
+                GattDeviceServicesResult getGattServices = await device.GetGattServicesAsync();
+                if (GattCommunicationStatus.Success == getGattServices.Status)
+                {
+                    foreach (GattDeviceService service in getGattServices.Services)
+                    {
+                        Log($"  Service {service.Uuid}");
+                        GattCharacteristicsResult getCharacteristics = await service.GetCharacteristicsAsync();
+                        if (GattCommunicationStatus.Success == getCharacteristics.Status)
+                        {
+                            foreach (GattCharacteristic characteristic in getCharacteristics.Characteristics)
+                            {
+                                Log($"    Characteristic {characteristic.Uuid} property {characteristic.CharacteristicProperties}");
+                                GattReadResult readResult = await characteristic.ReadValueAsync();
+                                if (GattCommunicationStatus.Success == readResult.Status)
+                                {
+                                    LogBuffer($"      Retrieved value 0x", readResult.Value);
+                                }
+
+                            }
+                        }
+                        else
+                        {
+                            Log($"Getting GATT characteristics failed with status {getCharacteristics.Status}");
+                        }
+                    }
+                }
+                else
+                {
+                    Log($"Getting GATT services failed with status {getGattServices.Status}");
+                }
+
+                pause = 0;
+                dumping = false;
+            }
+        }
+
+        private void LogBuffer(string header, IBuffer data)
+        {
+            DataReader dr = DataReader.FromBuffer(data);
+            Byte[] dataArray = new Byte[data.Capacity];
+            dr.ReadBytes(dataArray);
+            string dataDump = header;
+            foreach (Byte d in dataArray)
+            {
+                dataDump += $"{d:x2}";
+            }
+            Log(dataDump);
         }
 
         private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
@@ -79,9 +139,8 @@ namespace HelloBLE
         {
             BluetoothLEAdvertisement advertisement = args.Advertisement;
 
-            if (tryConnecting)
+            if (tryConnecting || connected)
             {
-                Log("Ignoring advertisement, connection attempt already underway.");
                 return;
             }
 
@@ -92,52 +151,6 @@ namespace HelloBLE
                 device = await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
                 connected = true;
                 Log($"Device with ID {device.DeviceId} acquired.");
-                GattDeviceServicesResult getGattServices = await device.GetGattServicesAsync();
-                if (GattCommunicationStatus.Success == getGattServices.Status)
-                {
-                    foreach (GattDeviceService service in getGattServices.Services)
-                    {
-                        Log($"  Service {service.Uuid}");
-                        GattCharacteristicsResult getCharacteristics = await service.GetCharacteristicsAsync();
-                        if (GattCommunicationStatus.Success == getCharacteristics.Status)
-                        {
-                            foreach (GattCharacteristic characteristic in getCharacteristics.Characteristics)
-                            {
-                                Log($"    Characteristic {characteristic.Uuid} property {characteristic.CharacteristicProperties}");
-                                GattDescriptorsResult getDescriptors = await characteristic.GetDescriptorsAsync();
-                                if (GattCommunicationStatus.Success == getDescriptors.Status)
-                                {
-                                    foreach (GattDescriptor descriptor in getDescriptors.Descriptors)
-                                    {
-                                        GattReadResult readResult = await descriptor.ReadValueAsync();
-                                        DataReader dr = DataReader.FromBuffer(readResult.Value);
-                                        Byte[] dataArray = new Byte[readResult.Value.Capacity];
-                                        dr.ReadBytes(dataArray);
-                                        string dataDump = $"      Descriptor {descriptor.Uuid} value 0x";
-                                        foreach (Byte d in dataArray)
-                                        {
-                                            dataDump += $"{d:x2}";
-                                        }
-                                        Log(dataDump);
-                                    }
-                                }
-                                else
-                                {
-                                    Log($"Getting GATT descriptors failed with status {getDescriptors.Status}");
-                                }
-                            }
-                        }
-                        else
-                        {
-                            Log($"Getting GATT characteristics failed with status {getCharacteristics.Status}");
-                        }
-                    }
-                }
-                else
-                {
-                    Log($"Getting GATT services failed with status {getGattServices.Status}");
-                }
-
             }
             else
             {
