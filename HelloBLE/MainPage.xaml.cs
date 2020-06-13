@@ -125,10 +125,11 @@ namespace HelloBLE
                 device = await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
                 connected = true;
                 Log($"Device with ID {device.DeviceId} acquired.");
+                await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Low, () => { btnEnumerate.IsEnabled = true; });
             }
             else
             {
-                Log($"Ignoring BLE advertisement from device (not Sylvac indicator) {advertisement.LocalName}");
+                Log($"Ignoring BLE advertisement from address {args.BluetoothAddress:x} {advertisement.LocalName}");
             }
         }
 
@@ -151,10 +152,39 @@ namespace HelloBLE
                             foreach (GattCharacteristic characteristic in getCharacteristics.Characteristics)
                             {
                                 Log($"    Characteristic {characteristic.Uuid} property {characteristic.CharacteristicProperties}");
-                                GattReadResult readResult = await characteristic.ReadValueAsync();
-                                if (GattCommunicationStatus.Success == readResult.Status)
+                                if (characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Read))
                                 {
-                                    LogBuffer($"      Read value 0x", readResult.Value);
+                                    GattReadResult readResult = await characteristic.ReadValueAsync();
+                                    if (GattCommunicationStatus.Success == readResult.Status)
+                                    {
+                                        LogBuffer($"      Read value 0x", readResult.Value);
+                                    }
+                                    else
+                                    {
+                                        Log($"      Failed to read from readable characteristic");
+                                    }
+                                }
+                                if (characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Notify))
+                                {
+                                    GattCommunicationStatus notify = await
+                                        characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
+                                            GattClientCharacteristicConfigurationDescriptorValue.Notify);
+                                    if (GattCommunicationStatus.Success == notify)
+                                    {
+                                        characteristic.ValueChanged += Characteristic_ValueChanged;
+                                        Log($"      Notification requested for {characteristic.Uuid}");
+                                    }
+                                }
+                                if (characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Indicate))
+                                {
+                                    GattCommunicationStatus indicate = await
+                                        characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
+                                            GattClientCharacteristicConfigurationDescriptorValue.Indicate);
+                                    if (GattCommunicationStatus.Success == indicate)
+                                    {
+                                        characteristic.ValueChanged += Characteristic_ValueChanged;
+                                        Log($"      Indication requested for {characteristic.Uuid}");
+                                    }
                                 }
 
                                 GattDescriptorsResult getDescriptors = await characteristic.GetDescriptorsAsync();
@@ -162,8 +192,11 @@ namespace HelloBLE
                                 {
                                     foreach (GattDescriptor descriptor in getDescriptors.Descriptors)
                                     {
-                                        readResult = await descriptor.ReadValueAsync();
-                                        LogBuffer($"      Descriptor {descriptor.Uuid} value 0x", readResult.Value);
+                                        GattReadResult readResult = await descriptor.ReadValueAsync();
+                                        if (GattCommunicationStatus.Success == readResult.Status)
+                                        {
+                                            LogBuffer($"      Descriptor {descriptor.Uuid} value 0x", readResult.Value);
+                                        }
                                     }
                                 }
                                 else
@@ -186,6 +219,11 @@ namespace HelloBLE
                 dumping = false;
             }
 
+        }
+
+        private void Characteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args)
+        {
+            LogBuffer($"* {sender.Uuid} changed 0x", args.CharacteristicValue);
         }
     }
 }
