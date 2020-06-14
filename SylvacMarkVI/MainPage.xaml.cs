@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
+using System.Threading.Tasks;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
@@ -77,10 +78,34 @@ namespace SylvacMarkVI
                     if (device != null)
                     {
                         Log($"Successfully acquired BluetoothLEDevice {device.Name}");
+
+                        GattDeviceServicesResult getServices = await device.GetGattServicesForUuidAsync(BTSIG_BatteryService);
+                        if (GattCommunicationStatus.Success == getServices.Status)
+                        {
+                            GattCharacteristicsResult getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(BTSIG_BatteryLevel);
+                            if (GattCommunicationStatus.Success == getCharacteristics.Status)
+                            {
+                                batteryLevelCharacteristic = getCharacteristics.Characteristics[0];
+                                await GetBatteryLevel();
+                            }
+                            else
+                            {
+                                Log($"Failed to obtain BTSIG_BatteryLevel characteristic {BTSIG_BatteryLevel}", LoggingLevel.Error);
+                                DeviceDisconnect();
+                            }
+                        }
+                        else
+                        {
+                            Log($"Failed to obtain BTSIG_BatteryService {BTSIG_BatteryService}", LoggingLevel.Error);
+                            DeviceDisconnect();
+                        }
                     }
                     else
                     {
-                        Log($"Failed to acquire BluetoothLEDevice on {bluetoothId:x}");
+                        Log($"Failed to acquire BluetoothLEDevice on {bluetoothId:x}", LoggingLevel.Error);
+                        // Remove failed key from cache
+                        localSettings.Values.Remove(BluetoothIDKey);
+                        DeviceDisconnect();
                     }
                 }
                 else
@@ -88,6 +113,20 @@ namespace SylvacMarkVI
                     Log($"DeviceConnect found no Bluetooth ID, queue task to listen for advertisements.");
                     ListenForBluetoothAdvertisement();
                 }
+            }
+        }
+
+        private async void DeviceDisconnect(bool tryReconnect = true)
+        {
+            Log("Disconnecting device");
+            batteryLevelCharacteristic?.Service.Dispose();
+            batteryLevelCharacteristic = null;
+            device.Dispose();
+            device = null;
+            if (tryReconnect)
+            {
+                Log("Retrying connect");
+                await Dispatcher.RunAsync(CoreDispatcherPriority.Low, DeviceConnect);
             }
         }
 
@@ -125,6 +164,29 @@ namespace SylvacMarkVI
             {
                 Log($"Received advertisement from {args.BluetoothAddress:x} but doesn't sound like Sylvac indicator");
             }
+        }
+
+        private async Task<UInt16> GetBatteryLevel()
+        {
+            if (batteryLevelCharacteristic != null)
+            {
+                GattReadResult readResult = await batteryLevelCharacteristic.ReadValueAsync();
+                if (GattCommunicationStatus.Success == readResult.Status)
+                {
+                    UInt16 batteryLevel = (UInt16)readResult.Value.GetByte(0);
+                    Log($"Read battery level {batteryLevel}");
+                    return batteryLevel;
+                }
+                else
+                {
+                    Log("Failed to read from battery level characteristic.");
+                }
+            }
+            else
+            {
+                Log("GetBatteryLevel can't do anything if batteryLevelCharacteristic is NULL. Should have been setup upon device connect.", LoggingLevel.Error);
+            }
+            return 0;
         }
 
         private void ActivityUpdateTimer_Tick(object sender, object e)
