@@ -124,6 +124,7 @@ namespace HelloBLE
                 Log($"SY289 heard at Bluetooth address {args.BluetoothAddress:x}");
                 device = await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
                 connected = true;
+                tryConnecting = false;
                 Log($"Device with ID {device.DeviceId} acquired.");
                 await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Low, () => { btnEnumerate.IsEnabled = true; });
             }
@@ -164,28 +165,6 @@ namespace HelloBLE
                                         Log($"      Failed to read from readable characteristic");
                                     }
                                 }
-                                if (characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Notify))
-                                {
-                                    GattCommunicationStatus notify = await
-                                        characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
-                                            GattClientCharacteristicConfigurationDescriptorValue.Notify);
-                                    if (GattCommunicationStatus.Success == notify)
-                                    {
-                                        characteristic.ValueChanged += Characteristic_ValueChanged;
-                                        Log($"      Notification requested for {characteristic.Uuid}");
-                                    }
-                                }
-                                if (characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Indicate))
-                                {
-                                    GattCommunicationStatus indicate = await
-                                        characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
-                                            GattClientCharacteristicConfigurationDescriptorValue.Indicate);
-                                    if (GattCommunicationStatus.Success == indicate)
-                                    {
-                                        characteristic.ValueChanged += Characteristic_ValueChanged;
-                                        Log($"      Indication requested for {characteristic.Uuid}");
-                                    }
-                                }
 
                                 GattDescriptorsResult getDescriptors = await characteristic.GetDescriptorsAsync();
                                 if (GattCommunicationStatus.Success == getDescriptors.Status)
@@ -210,20 +189,25 @@ namespace HelloBLE
                             Log($"Getting GATT characteristics failed with status {getCharacteristics.Status}");
                         }
                     }
+                    foreach (GattDeviceService service in getGattServices.Services)
+                    {
+                        service.Session.Dispose();
+                        service.Dispose();
+                    }
                 }
                 else
                 {
                     Log($"Getting GATT services failed with status {getGattServices.Status}");
                 }
 
+                // Dump complete, release device.
+                device.Dispose();
+                device = null;
+                connected = false;
+                await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Low, () => { btnEnumerate.IsEnabled = false; });
                 dumping = false;
             }
 
-        }
-
-        private void Characteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args)
-        {
-            LogBuffer($"* {sender.Uuid} changed 0x", args.CharacteristicValue);
         }
     }
 }
