@@ -86,25 +86,13 @@ namespace SylvacMarkVI
                 if (device != null)
                 {
                     Log($"Successfully acquired BluetoothLEDevice {device.Name}");
-
-                    GattDeviceServicesResult getServices = await device.GetGattServicesForUuidAsync(BTSIG_BatteryService);
-                    if (GattCommunicationStatus.Success == getServices.Status)
+                    try
                     {
-                        GattCharacteristicsResult getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(BTSIG_BatteryLevel);
-                        if (GattCommunicationStatus.Success == getCharacteristics.Status)
-                        {
-                            batteryLevelCharacteristic = getCharacteristics.Characteristics[0];
-                            await GetBatteryLevel();
-                        }
-                        else
-                        {
-                            Log($"Failed to obtain BTSIG_BatteryLevel characteristic {BTSIG_BatteryLevel}", LoggingLevel.Error);
-                            DeviceDisconnect();
-                        }
+                        await GetBLECharacteristics();
                     }
-                    else
+                    catch(IOException e)
                     {
-                        Log($"Failed to obtain BTSIG_BatteryService {BTSIG_BatteryService}", LoggingLevel.Error);
+                        Log($"Failed to obtain BLE characteristics. {e.Message}", LoggingLevel.Error);
                         DeviceDisconnect();
                     }
                 }
@@ -121,6 +109,30 @@ namespace SylvacMarkVI
                 Log($"DeviceConnect found no Bluetooth ID, queue task to listen for advertisements.");
                 ListenForBluetoothAdvertisement();
             }
+        }
+
+        private void CheckStatus(GattCommunicationStatus status, string message)
+        {
+            if(GattCommunicationStatus.Success != status)
+            {
+                throw new IOException(message);
+            }
+        }
+
+        private async Task GetBLECharacteristics()
+        {
+            GattDeviceServicesResult getServices;
+            GattCharacteristicsResult getCharacteristics;
+
+            // Battery level
+            getServices = await device.GetGattServicesForUuidAsync(BTSIG_BatteryService);
+            CheckStatus(getServices.Status, "GetGattServicesForUuidAsync(BTSIG_BatteryService)");
+
+            getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(BTSIG_BatteryLevel);
+            CheckStatus(getCharacteristics.Status, "GetCharacteristicsForUuidAsync(BTSIG_BatteryLevel)");
+
+            batteryLevelCharacteristic = getCharacteristics.Characteristics[0];
+            await GetBatteryLevel();
         }
 
         private async void DeviceDisconnect(bool tryReconnect = true)
@@ -167,7 +179,7 @@ namespace SylvacMarkVI
             }
             else
             {
-                Log($"Received advertisement from {args.BluetoothAddress:x} but doesn't sound like Sylvac indicator, continue listening.");
+                Log($"Received advertisement from {args.BluetoothAddress:x} but doesn't sound like Sylvac indicator. Continue listening...");
             }
         }
 
