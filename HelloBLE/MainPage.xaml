@@ -22,6 +22,7 @@
         <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Vertical" VerticalAlignment="Center">
             <Button x:Name="btnBLEAdWatch" Content="Add BLE Watcher for SY289" Click="btnBLEAdWatch_Click"/>
             <Button x:Name="btnEnumerate" Content="Enumerate BLE services" Click="btnEnumerate_Click" IsEnabled="False"/>
+            <Button x:Name="btnDirectDial" Content="Direct dial 0xd5c0b41e979e" Click="btnDirectDial_Click"/>
         </StackPanel>
         <TextBlock x:Name="tbLogging"
                    Grid.Row="2"

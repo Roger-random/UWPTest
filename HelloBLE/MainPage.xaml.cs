@@ -209,5 +209,16 @@ namespace HelloBLE
             }
 
         }
+
+        private async void btnDirectDial_Click(object sender, RoutedEventArgs e)
+        {
+            BluetoothLEDevice directDevice = null;
+
+            directDevice = await BluetoothLEDevice.FromBluetoothAddressAsync(0xd5c0b41e979e);
+            Log($"  BlueLEDevice.Name {directDevice.Name}");
+            Log($"  BlueLEDevice.ConnectionStatus {directDevice.ConnectionStatus}");
+
+            directDevice.Dispose();
+        }
     }
 }
