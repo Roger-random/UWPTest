@@ -36,6 +36,7 @@ namespace HelloBLE
         private bool connected = false;
         private bool dumping = false;
         private BluetoothLEDevice device = null;
+        private List<ulong> btAddresses = new List<ulong>();
 
         public MainPage()
         {
@@ -130,7 +131,26 @@ namespace HelloBLE
             }
             else
             {
-                Log($"Ignoring BLE advertisement from address {args.BluetoothAddress:x} {advertisement.LocalName}");
+                if (btAddresses.Contains(args.BluetoothAddress))
+                {
+                    Log($"- Ignoring already-seen BLE advertisement from address {args.BluetoothAddress:x} {advertisement.LocalName}");
+                }
+                else
+                {
+                    btAddresses.Add(args.BluetoothAddress);
+                    Log($"New advertisement from address {args.BluetoothAddress:x} with name {advertisement.LocalName}");
+                    BluetoothLEDevice localDevice = await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
+                    if (localDevice != null)
+                    {
+                        Log($"  BluetoothLEDevice Name={localDevice.Name}");
+                        localDevice.Dispose();
+                        localDevice = null;
+                    }
+                    else
+                    {
+                        Log($"  Failed to obtain BluetoothLEDevice from that advertisement");
+                    }
+                }
             }
         }
 
