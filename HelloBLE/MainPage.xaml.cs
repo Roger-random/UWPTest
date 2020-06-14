@@ -114,51 +114,20 @@ namespace HelloBLE
         {
             BluetoothLEAdvertisement advertisement = args.Advertisement;
 
-            if (tryConnecting || connected)
+            if (tryConnecting || connected || btAddresses.Contains(args.BluetoothAddress))
             {
                 return;
             }
 
-            if (advertisement.LocalName == "SY289")
+            btAddresses.Add(args.BluetoothAddress);
+            Log($"New advertisement from address {args.BluetoothAddress:x} with name {advertisement.LocalName}");
+            tryConnecting = true;
+            device = await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
+            if (device != null)
             {
-                tryConnecting = true;
-                Log($"SY289 heard at Bluetooth address {args.BluetoothAddress:x}");
-                device = await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
                 connected = true;
                 tryConnecting = false;
-                Log($"Device with ID {device.DeviceId} acquired.");
-                await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Low, () => { btnEnumerate.IsEnabled = true; });
-            }
-            else
-            {
-                if (btAddresses.Contains(args.BluetoothAddress))
-                {
-                    Log($"- Ignoring already-seen BLE advertisement from address {args.BluetoothAddress:x} {advertisement.LocalName}");
-                }
-                else
-                {
-                    btAddresses.Add(args.BluetoothAddress);
-                    Log($"New advertisement from address {args.BluetoothAddress:x} with name {advertisement.LocalName}");
-                    BluetoothLEDevice localDevice = await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
-                    if (localDevice != null)
-                    {
-                        Log($"  BluetoothLEDevice Name={localDevice.Name}");
-                        localDevice.Dispose();
-                        localDevice = null;
-                    }
-                    else
-                    {
-                        Log($"  Failed to obtain BluetoothLEDevice from that advertisement");
-                    }
-                }
-            }
-        }
-
-        private async void btnEnumerate_Click(object sender, RoutedEventArgs e)
-        {
-            if (connected && !dumping)
-            {
-                dumping = true;
+                Log($"  BluetoothLEDevice Name={device.Name}");
                 Log("-- Enumerating all BLE services, characteristics, and descriptors");
 
                 GattDeviceServicesResult getGattServices = await device.GetGattServicesAsync();
@@ -224,21 +193,12 @@ namespace HelloBLE
                 device.Dispose();
                 device = null;
                 connected = false;
-                await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Low, () => { btnEnumerate.IsEnabled = false; });
-                dumping = false;
             }
-
-        }
-
-        private async void btnDirectDial_Click(object sender, RoutedEventArgs e)
-        {
-            BluetoothLEDevice directDevice = null;
-
-            directDevice = await BluetoothLEDevice.FromBluetoothAddressAsync(0xd5c0b41e979e);
-            Log($"  BlueLEDevice.Name {directDevice.Name}");
-            Log($"  BlueLEDevice.ConnectionStatus {directDevice.ConnectionStatus}");
-
-            directDevice.Dispose();
+            else
+            {
+                tryConnecting = false;
+                Log($"  Failed to obtain BluetoothLEDevice from that advertisement");
+            }
         }
     }
 }
