@@ -31,14 +31,22 @@ namespace SylvacMarkVI
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private const string BluetoothIDKey = "BluetoothID";
-        private const string IndicatorName = "SY289";
+        // Defined by Bluetooth Special Interest Group (BTSIG)
         private Guid BTSIG_BatteryService = new Guid("0000180f-0000-1000-8000-00805f9b34fb");
         private Guid BTSIG_BatteryLevel = new Guid("00002a19-0000-1000-8000-00805f9b34fb");
-        private GattCharacteristic batteryLevelCharacteristic = null;
+
+        // Defined by Sylvac
+        private const string IndicatorName = "SY289";
+
+        // Defined by author of this application
+        private const string BluetoothIDKey = "BluetoothID";
+
+        // Objects to interact with Bluetooth device, sorted roughly in order of usage
         private BluetoothLEAdvertisementWatcher watcher = null;
         private BluetoothLEDevice device = null;
+        private GattCharacteristic batteryLevelCharacteristic = null;
 
+        // Objects for application housekeeping
         private DispatcherTimer activityUpdateTimer;
         private Logger logger = null;
 
@@ -67,61 +75,60 @@ namespace SylvacMarkVI
             if (device != null)
             {
                 Log("DeviceConnect should not be called when device is already connected", LoggingLevel.Warning);
+                return;
             }
-            else
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values.ContainsKey(BluetoothIDKey))
-                {
-                    ulong bluetoothId = (ulong)localSettings.Values[BluetoothIDKey];
-                    device = await BluetoothLEDevice.FromBluetoothAddressAsync(bluetoothId);
-                    if (device != null)
-                    {
-                        Log($"Successfully acquired BluetoothLEDevice {device.Name}");
 
-                        GattDeviceServicesResult getServices = await device.GetGattServicesForUuidAsync(BTSIG_BatteryService);
-                        if (GattCommunicationStatus.Success == getServices.Status)
+            ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+            if (localSettings.Values.ContainsKey(BluetoothIDKey))
+            {
+                ulong bluetoothId = (ulong)localSettings.Values[BluetoothIDKey];
+                device = await BluetoothLEDevice.FromBluetoothAddressAsync(bluetoothId);
+                if (device != null)
+                {
+                    Log($"Successfully acquired BluetoothLEDevice {device.Name}");
+
+                    GattDeviceServicesResult getServices = await device.GetGattServicesForUuidAsync(BTSIG_BatteryService);
+                    if (GattCommunicationStatus.Success == getServices.Status)
+                    {
+                        GattCharacteristicsResult getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(BTSIG_BatteryLevel);
+                        if (GattCommunicationStatus.Success == getCharacteristics.Status)
                         {
-                            GattCharacteristicsResult getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(BTSIG_BatteryLevel);
-                            if (GattCommunicationStatus.Success == getCharacteristics.Status)
-                            {
-                                batteryLevelCharacteristic = getCharacteristics.Characteristics[0];
-                                await GetBatteryLevel();
-                            }
-                            else
-                            {
-                                Log($"Failed to obtain BTSIG_BatteryLevel characteristic {BTSIG_BatteryLevel}", LoggingLevel.Error);
-                                DeviceDisconnect();
-                            }
+                            batteryLevelCharacteristic = getCharacteristics.Characteristics[0];
+                            await GetBatteryLevel();
                         }
                         else
                         {
-                            Log($"Failed to obtain BTSIG_BatteryService {BTSIG_BatteryService}", LoggingLevel.Error);
+                            Log($"Failed to obtain BTSIG_BatteryLevel characteristic {BTSIG_BatteryLevel}", LoggingLevel.Error);
                             DeviceDisconnect();
                         }
                     }
                     else
                     {
-                        Log($"Failed to acquire BluetoothLEDevice on {bluetoothId:x}", LoggingLevel.Error);
-                        // Remove failed key from cache
-                        localSettings.Values.Remove(BluetoothIDKey);
+                        Log($"Failed to obtain BTSIG_BatteryService {BTSIG_BatteryService}", LoggingLevel.Error);
                         DeviceDisconnect();
                     }
                 }
                 else
                 {
-                    Log($"DeviceConnect found no Bluetooth ID, queue task to listen for advertisements.");
-                    ListenForBluetoothAdvertisement();
+                    Log($"Failed to acquire BluetoothLEDevice on {bluetoothId:x}", LoggingLevel.Error);
+                    // Remove failed key from cache
+                    localSettings.Values.Remove(BluetoothIDKey);
+                    DeviceDisconnect();
                 }
+            }
+            else
+            {
+                Log($"DeviceConnect found no Bluetooth ID, queue task to listen for advertisements.");
+                ListenForBluetoothAdvertisement();
             }
         }
 
         private async void DeviceDisconnect(bool tryReconnect = true)
         {
-            Log("Disconnecting device");
+            Log("Disconnecting device (if present)");
             batteryLevelCharacteristic?.Service.Dispose();
             batteryLevelCharacteristic = null;
-            device.Dispose();
+            device?.Dispose();
             device = null;
             if (tryReconnect)
             {
@@ -132,17 +139,15 @@ namespace SylvacMarkVI
 
         private void ListenForBluetoothAdvertisement()
         {
-            if (watcher == null)
+            if (watcher != null)
             {
-                watcher = new BluetoothLEAdvertisementWatcher();
-                watcher.Received += Bluetooth_Advertisement_Watcher_Received;
-                watcher.Start();
-                Log("Listening for Bluetooth advertisement broadcast by Sylvac indicator...", LoggingLevel.Information);
+                throw new InvalidOperationException("BluetoothLEAdvertisementWatcher already exists, should not be trying to create a new watcher.");
             }
-            else
-            {
-                Log("BluetoothLEAdvertisementWatcher already exists, should not be trying to create a new watcher.", LoggingLevel.Warning);
-            }
+
+            watcher = new BluetoothLEAdvertisementWatcher();
+            watcher.Received += Bluetooth_Advertisement_Watcher_Received;
+            watcher.Start();
+            Log("Listening for Bluetooth advertisement broadcast by Sylvac indicator...", LoggingLevel.Information);
         }
 
         private async void Bluetooth_Advertisement_Watcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
@@ -162,31 +167,30 @@ namespace SylvacMarkVI
             }
             else
             {
-                Log($"Received advertisement from {args.BluetoothAddress:x} but doesn't sound like Sylvac indicator");
+                Log($"Received advertisement from {args.BluetoothAddress:x} but doesn't sound like Sylvac indicator, continue listening.");
             }
         }
 
         private async Task<UInt16> GetBatteryLevel()
         {
-            if (batteryLevelCharacteristic != null)
+            if (batteryLevelCharacteristic == null)
             {
-                GattReadResult readResult = await batteryLevelCharacteristic.ReadValueAsync();
-                if (GattCommunicationStatus.Success == readResult.Status)
-                {
-                    UInt16 batteryLevel = (UInt16)readResult.Value.GetByte(0);
-                    Log($"Read battery level {batteryLevel}");
-                    return batteryLevel;
-                }
-                else
-                {
-                    Log("Failed to read from battery level characteristic.");
-                }
+                throw new InvalidOperationException(
+                    "GetBatteryLevel can't do anything if batteryLevelCharacteristic is NULL. Should have been setup upon DeviceConnect.");
+            }
+
+            GattReadResult readResult = await batteryLevelCharacteristic.ReadValueAsync();
+            if (GattCommunicationStatus.Success == readResult.Status)
+            {
+                UInt16 batteryLevel = (UInt16)readResult.Value.GetByte(0);
+                Log($"Read battery level {batteryLevel}");
+                return batteryLevel;
             }
             else
             {
-                Log("GetBatteryLevel can't do anything if batteryLevelCharacteristic is NULL. Should have been setup upon device connect.", LoggingLevel.Error);
+                Log("Failed to read from battery level characteristic.");
+                return 0;
             }
-            return 0;
         }
 
         private void ActivityUpdateTimer_Tick(object sender, object e)
