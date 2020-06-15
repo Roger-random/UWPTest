@@ -34,8 +34,17 @@ namespace SylvacMarkVI
         // Defined by Bluetooth Special Interest Group (BTSIG)
         private Guid BTSIG_BatteryService = new Guid("0000180f-0000-1000-8000-00805f9b34fb");
         private Guid BTSIG_BatteryLevel = new Guid("00002a19-0000-1000-8000-00805f9b34fb");
+        private Guid BTSIG_PresentationFormat = new Guid("00002904-0000-1000-8000-00805f9b34fb");
+
+        // The following GUIDs are in the BTSIG space, but I couldn't find official names.
+        private Guid BTSIG_Unknown_Service = new Guid("00005000-0000-1000-8000-00805f9b34fb");
+        private Guid BTSIG_Unknown_Measurement = new Guid("00005020-0000-1000-8000-00805f9b34fb");
+        private Guid BTSIG_Unknown_Unit = new Guid("00005021-0000-1000-8000-00805f9b34fb");
 
         // Defined by Sylvac
+        private Guid Sylvac_Service = new Guid("c1b25000-caaf-6d0e-4c33-7dae30052840");
+        private Guid Sylvac_Service_Input = new Guid("c1b25012-caaf-6d0e-4c33-7dae30052840");
+        private Guid Sylvac_Service_Output = new Guid("c1b25013-caaf-6d0e-4c33-7dae30052840");
         private const string IndicatorName = "SY289";
 
         // Defined by author of this application
@@ -45,6 +54,7 @@ namespace SylvacMarkVI
         private BluetoothLEAdvertisementWatcher watcher = null;
         private BluetoothLEDevice device = null;
         private GattCharacteristic batteryLevelCharacteristic = null;
+        private GattCharacteristic sylvacServiceInput = null;
 
         // Objects for application housekeeping
         private DispatcherTimer activityUpdateTimer;
@@ -119,10 +129,32 @@ namespace SylvacMarkVI
             }
         }
 
+        private void CheckCharacteristicFlag(GattCharacteristic characteristic, GattCharacteristicProperties flag, string message)
+        {
+            if (!characteristic.CharacteristicProperties.HasFlag(flag))
+            {
+                throw new IOException(message);
+            }
+        }
+
+        private async Task SetupNotification(GattCharacteristic characteristic, string message)
+        {
+            CheckCharacteristicFlag(characteristic, GattCharacteristicProperties.Notify, message);
+            GattCommunicationStatus notify = await
+                characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
+                    GattClientCharacteristicConfigurationDescriptorValue.Notify);
+            CheckStatus(notify, $"Notify for: {message}");
+        }
+        private void CheckRead(GattCharacteristic characteristic, string message)
+        {
+            CheckCharacteristicFlag(characteristic, GattCharacteristicProperties.Read, message);
+        }
+
         private async Task GetBLECharacteristics()
         {
             GattDeviceServicesResult getServices;
             GattCharacteristicsResult getCharacteristics;
+            GattCharacteristic characteristic;
 
             // Battery level
             getServices = await device.GetGattServicesForUuidAsync(BTSIG_BatteryService);
@@ -133,6 +165,36 @@ namespace SylvacMarkVI
 
             batteryLevelCharacteristic = getCharacteristics.Characteristics[0];
             await GetBatteryLevel();
+
+            // Push notification of measurement change
+            getServices = await device.GetGattServicesForUuidAsync(BTSIG_Unknown_Service);
+            CheckStatus(getServices.Status, "GetGattServicesForUuidAsync(BTSIG_Unknown_Service)");
+
+            getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(BTSIG_Unknown_Measurement);
+            CheckStatus(getCharacteristics.Status, "GetCharacteristicsForUuidAsync(BTSIG_Unknown_Measurement)");
+
+            characteristic = getCharacteristics.Characteristics[0];
+            await SetupNotification(characteristic, "BTSIG_Unknown_Measurement");
+            characteristic.ValueChanged += Notification_Measurement;
+
+            getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(BTSIG_Unknown_Unit);
+            CheckStatus(getCharacteristics.Status, "GetCharacteristicsForUuidAsync(BTSIG_Unknown_Unit)");
+
+            characteristic = getCharacteristics.Characteristics[0];
+            await SetupNotification(characteristic, "BTSIG_Unknown_Unit");
+            characteristic.ValueChanged += Notification_Unit;
+        }
+
+        private void Notification_Unit(GattCharacteristic sender, GattValueChangedEventArgs args)
+        {
+            Int16 unit = BitConverter.ToInt16(args.CharacteristicValue.ToArray(), 0);
+            Log($"New unit designation {unit}");
+        }
+
+        private void Notification_Measurement(GattCharacteristic sender, GattValueChangedEventArgs args)
+        {
+            Int32 measurement = BitConverter.ToInt32(args.CharacteristicValue.ToArray(), 0);
+            Log($"Received measurement update {measurement}");
         }
 
         private async void DeviceDisconnect(bool tryReconnect = true)
