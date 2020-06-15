@@ -64,6 +64,8 @@ namespace SylvacMarkVI
         private BluetoothLEAdvertisementWatcher watcher = null;
         private BluetoothLEDevice device = null;
         private GattCharacteristic batteryLevelCharacteristic = null;
+        private GattCharacteristic measurementCharacteristic = null;
+        private GattCharacteristic unitCharacteristic = null;
         private GattCharacteristic sylvacServiceInput = null;
 
         // Objects for application housekeeping
@@ -95,6 +97,9 @@ namespace SylvacMarkVI
 
             // Queue task to connect to device via BLE
             _ = Dispatcher.RunAsync(CoreDispatcherPriority.Low, DeviceConnect);
+
+            // Listen for time to cleanup
+            Application.Current.Suspending += App_Suspending;
         }
 
         private async void DeviceConnect()
@@ -162,7 +167,15 @@ namespace SylvacMarkVI
             GattCommunicationStatus notify = await
                 characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
                     GattClientCharacteristicConfigurationDescriptorValue.Notify);
-            CheckStatus(notify, $"Notify for: {message}");
+            CheckStatus(notify, $"Set notify for: {message}");
+        }
+        private async Task ClearNotification(GattCharacteristic characteristic, string message)
+        {
+            CheckCharacteristicFlag(characteristic, GattCharacteristicProperties.Notify, message);
+            GattCommunicationStatus notify = await
+                characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
+                    GattClientCharacteristicConfigurationDescriptorValue.None);
+            CheckStatus(notify, $"Clear notify for: {message}");
         }
         private void CheckRead(GattCharacteristic characteristic, string message)
         {
@@ -179,9 +192,6 @@ namespace SylvacMarkVI
         {
             GattDeviceServicesResult getServices;
             GattCharacteristicsResult getCharacteristics;
-            GattCharacteristic characteristic;
-            GattDescriptorsResult getDescriptors;
-            GattReadResult readResult;
 
             // Battery level
             getServices = await device.GetGattServicesForUuidAsync(BTSIG_BatteryService);
@@ -200,11 +210,23 @@ namespace SylvacMarkVI
             getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(BTSIG_Unknown_Measurement);
             CheckStatus(getCharacteristics.Status, "GetCharacteristicsForUuidAsync(BTSIG_Unknown_Measurement)");
 
-            characteristic = getCharacteristics.Characteristics[0];
-            await SetupNotification(characteristic, "BTSIG_Unknown_Measurement");
-            characteristic.ValueChanged += Notification_Measurement;
+            measurementCharacteristic = getCharacteristics.Characteristics[0];
 
-            getDescriptors = await characteristic.GetDescriptorsForUuidAsync(BTSIG_PresentationFormat);
+            getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(BTSIG_Unknown_Unit);
+            CheckStatus(getCharacteristics.Status, "GetCharacteristicsForUuidAsync(BTSIG_Unknown_Unit)");
+
+            unitCharacteristic = getCharacteristics.Characteristics[0];
+
+            await CheckMeasurementPresentation();
+            await StartNotifications();
+        }
+
+        private async Task CheckMeasurementPresentation()
+        {
+            GattDescriptorsResult getDescriptors;
+            GattReadResult readResult;
+
+            getDescriptors = await measurementCharacteristic.GetDescriptorsForUuidAsync(BTSIG_PresentationFormat);
             CheckStatus(getDescriptors.Status, "GetDescriptorsForUuidAsync(BTSIG_PresentationFormat)");
 
             readResult = await getDescriptors.Descriptors[0].ReadValueAsync();
@@ -214,23 +236,39 @@ namespace SylvacMarkVI
             {
                 IOError($"Presentation Format expected to have 7 bytes but had {readResult.Value.Length}");
             }
+
             if (0x10 != readResult.Value.GetByte(0))
             {
                 IOError($"Data format expected to be 0x10 (32-bit signed int) but is 0x{readResult.Value.GetByte(0):x}");
             }
+
             measurementExponent = (sbyte)readResult.Value.GetByte(1);
             Log($"Measurement exponent {measurementExponent}");
-            if (0x2701 != BitConverter.ToUInt16(readResult.Value.ToArray(2,2),0))
+
+            if (0x2701 != BitConverter.ToUInt16(readResult.Value.ToArray(2, 2), 0))
             {
                 IOError($"Expected to be 0x2701 signifying meters, but read 0x{BitConverter.ToUInt16(readResult.Value.ToArray(2, 2), 0):x}");
             }
+        }
 
-            getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(BTSIG_Unknown_Unit);
-            CheckStatus(getCharacteristics.Status, "GetCharacteristicsForUuidAsync(BTSIG_Unknown_Unit)");
+        private async Task StartNotifications()
+        {
+            Log($"Start notifications");
+            await SetupNotification(measurementCharacteristic, "BTSIG_Unknown_Measurement");
+            measurementCharacteristic.ValueChanged += Notification_Measurement;
 
-            characteristic = getCharacteristics.Characteristics[0];
-            await SetupNotification(characteristic, "BTSIG_Unknown_Unit");
-            characteristic.ValueChanged += Notification_Unit;
+            await SetupNotification(unitCharacteristic, "BTSIG_Unknown_Unit");
+            unitCharacteristic.ValueChanged += Notification_Unit;
+        }
+
+        private async Task StopNotifications()
+        {
+            Log($"Stop notifications");
+            measurementCharacteristic.ValueChanged -= Notification_Measurement;
+            await ClearNotification(measurementCharacteristic, "BTSIG_Unknown_Measurement");
+
+            unitCharacteristic.ValueChanged -= Notification_Unit;
+            await ClearNotification(unitCharacteristic, "BTSIG_Unknown_Unit");
         }
 
         private void Notification_Unit(GattCharacteristic sender, GattValueChangedEventArgs args)
@@ -364,7 +402,8 @@ namespace SylvacMarkVI
                 lastBatteryUpdate = DateTime.UtcNow;
                 await GetBatteryLevel();
                 tbBatteryPercentage.Text = $"Estimate {batteryLevel}% Battery Remaining";
-                // https://docs.microsoft.com/en-us/windows/uwp/design/style/segoe-ui-symbol-font
+
+                // Battery icon from Segoe MDL2 https://docs.microsoft.com/en-us/windows/uwp/design/style/segoe-ui-symbol-font
                 UInt16 glyphPoint;
                 if (batteryLevel > 95)
                 {
@@ -373,10 +412,9 @@ namespace SylvacMarkVI
                 else
                 {
                     // Battery0 - Battery9
-                    glyphPoint = 0xE830;
+                    glyphPoint = 0xE850;
                     glyphPoint += (UInt16)(batteryLevel / 10);
                 }
-
                 fiBattery.Glyph = ((char)glyphPoint).ToString();
             }
         }
@@ -392,5 +430,26 @@ namespace SylvacMarkVI
                 Debug.WriteLine("WARNING: Logger not available, log message lost.");
             }
         }
+
+        private async void btResyncNotify_Click(object sender, RoutedEventArgs e)
+        {
+            await StopNotifications();
+            await StartNotifications();
+        }
+        private async void App_Suspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e)
+        {
+            var deferral = e.SuspendingOperation.GetDeferral();
+            await StopNotifications();
+            Log("Cleaning up Bluetooth LE");
+            batteryLevelCharacteristic?.Service.Dispose();
+            batteryLevelCharacteristic = null;
+            measurementCharacteristic?.Service.Dispose();
+            measurementCharacteristic = null;
+            unitCharacteristic = null;
+            device.Dispose();
+            device = null;
+            deferral.Complete();
+        }
+
     }
 }

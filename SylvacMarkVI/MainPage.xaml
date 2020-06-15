@@ -30,6 +30,10 @@
                       FontFamily="Segoe MDL2 Assets"
                       FontSize="36"
                       Glyph="&#xE850;"/>
+            <Button x:Name="btResyncNotify"
+                    Content="Resync"
+                    HorizontalAlignment="Center"
+                    Click="btResyncNotify_Click"/>
         </StackPanel>
         <TextBlock x:Name="tbLogging"
                    Grid.Row="2"
