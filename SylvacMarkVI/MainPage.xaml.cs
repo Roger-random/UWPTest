@@ -41,6 +41,14 @@ namespace SylvacMarkVI
         private Guid BTSIG_Unknown_Measurement = new Guid("00005020-0000-1000-8000-00805f9b34fb");
         private Guid BTSIG_Unknown_Unit = new Guid("00005021-0000-1000-8000-00805f9b34fb");
 
+        // Best guess interpreting BTSIG_Unknown_Unit
+        [Flags]
+        private enum UnitFlags : UInt16
+        {
+            Metric = 4096, // 0001 0000 0000 0000
+            Inch = 8192,   // 0010 0000 0000 0000
+        }
+
         // Defined by Sylvac
         private Guid Sylvac_Service = new Guid("c1b25000-caaf-6d0e-4c33-7dae30052840");
         private Guid Sylvac_Service_Input = new Guid("c1b25012-caaf-6d0e-4c33-7dae30052840");
@@ -49,6 +57,7 @@ namespace SylvacMarkVI
 
         // Defined by author of this application
         private const string BluetoothIDKey = "BluetoothID";
+        private const string MetricDisplayKey = "MetricDisplay";
 
         // Objects to interact with Bluetooth device, sorted roughly in order of usage
         private BluetoothLEAdvertisementWatcher watcher = null;
@@ -125,7 +134,8 @@ namespace SylvacMarkVI
         {
             if(GattCommunicationStatus.Success != status)
             {
-                throw new IOException(message);
+                Log($"CheckStatus throwing IOException {status} {message}", LoggingLevel.Error);
+                throw new IOException($"{status} " + message);
             }
         }
 
@@ -133,6 +143,7 @@ namespace SylvacMarkVI
         {
             if (!characteristic.CharacteristicProperties.HasFlag(flag))
             {
+                Log($"CheckCharacteristicFlag did not see {flag} for {message}", LoggingLevel.Error);
                 throw new IOException(message);
             }
         }
@@ -187,8 +198,21 @@ namespace SylvacMarkVI
 
         private void Notification_Unit(GattCharacteristic sender, GattValueChangedEventArgs args)
         {
-            Int16 unit = BitConverter.ToInt16(args.CharacteristicValue.ToArray(), 0);
-            Log($"New unit designation {unit}");
+            UnitFlags unit = (UnitFlags)BitConverter.ToInt16(args.CharacteristicValue.ToArray(), 0);
+            if (unit.HasFlag(UnitFlags.Metric))
+            {
+                Log($"Unit change notification has METRIC flag");
+                //ApplicationData.Current.LocalSettings.Values[MetricDisplayKey] = true;
+            }
+            else if (unit.HasFlag(UnitFlags.Inch))
+            {
+                Log($"Unit change notification has INCH flag");
+                //ApplicationData.Current.LocalSettings.Values[MetricDisplayKey] = false;
+            }
+            else
+            {
+                Log($"Notified of unit change: {unit}");
+            }
         }
 
         private void Notification_Measurement(GattCharacteristic sender, GattValueChangedEventArgs args)
@@ -254,17 +278,11 @@ namespace SylvacMarkVI
             }
 
             GattReadResult readResult = await batteryLevelCharacteristic.ReadValueAsync();
-            if (GattCommunicationStatus.Success == readResult.Status)
-            {
-                UInt16 batteryLevel = (UInt16)readResult.Value.GetByte(0);
-                Log($"Read battery level {batteryLevel}");
-                return batteryLevel;
-            }
-            else
-            {
-                Log("Failed to read from battery level characteristic.");
-                return 0;
-            }
+            CheckStatus(readResult.Status, "batteryLevelCharacteristic.ReadValueAsync()");
+
+            UInt16 batteryLevel = (UInt16)readResult.Value.GetByte(0);
+            Log($"GetBatteryLevel : {batteryLevel}%");
+            return batteryLevel;
         }
 
         private void ActivityUpdateTimer_Tick(object sender, object e)
