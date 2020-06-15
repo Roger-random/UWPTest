@@ -76,8 +76,10 @@ namespace SylvacMarkVI
         private TimeSpan batteryUpdate = new TimeSpan(0, 1 /* minute */, 0);
         private DateTime lastBatteryUpdate = DateTime.MaxValue;
 
-        private Int32 measurementValue;
-        private Int32 measurementExponent;
+        private Int32 measurementValue = 0;
+        private Int32 measurementExponent = 1;
+
+        private string preMeasurement = null;
 
         public MainPage()
         {
@@ -106,18 +108,19 @@ namespace SylvacMarkVI
         {
             if (device != null)
             {
-                Log("DeviceConnect should not be called when device is already connected", LoggingLevel.Warning);
-                return;
+                Log("DeviceConnect should not be called when device is already connected", LoggingLevel.Error);
+                throw new InvalidOperationException("DeviceConnect should not be called when device is already connected");
             }
 
             ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
             if (localSettings.Values.ContainsKey(BluetoothIDKey))
             {
+                preMeasurement = "Connecting...";
                 ulong bluetoothId = (ulong)localSettings.Values[BluetoothIDKey];
                 device = await BluetoothLEDevice.FromBluetoothAddressAsync(bluetoothId);
                 if (device != null)
                 {
-                    Log($"Successfully acquired BluetoothLEDevice {device.Name}");
+                    Log($"Acquired BluetoothLEDevice {device.Name}", LoggingLevel.Information);
                     try
                     {
                         await GetBLECharacteristics();
@@ -138,7 +141,7 @@ namespace SylvacMarkVI
             }
             else
             {
-                Log($"DeviceConnect found no Bluetooth ID, queue task to listen for advertisements.");
+                Log($"DeviceConnect found no Bluetooth ID, queue task to listen for advertisements.", LoggingLevel.Information);
                 ListenForBluetoothAdvertisement();
             }
         }
@@ -253,7 +256,7 @@ namespace SylvacMarkVI
 
         private async Task StartNotifications()
         {
-            Log($"Start notifications");
+            Log($"Start notifications", LoggingLevel.Information);
             await SetupNotification(measurementCharacteristic, "BTSIG_Unknown_Measurement");
             measurementCharacteristic.ValueChanged += Notification_Measurement;
 
@@ -263,12 +266,19 @@ namespace SylvacMarkVI
 
         private async Task StopNotifications()
         {
-            Log($"Stop notifications");
-            measurementCharacteristic.ValueChanged -= Notification_Measurement;
-            await ClearNotification(measurementCharacteristic, "BTSIG_Unknown_Measurement");
+            if (measurementCharacteristic != null)
+            {
+                Log($"Stop measurement notification", LoggingLevel.Information);
+                measurementCharacteristic.ValueChanged -= Notification_Measurement;
+                await ClearNotification(measurementCharacteristic, "BTSIG_Unknown_Measurement");
+            }
 
-            unitCharacteristic.ValueChanged -= Notification_Unit;
-            await ClearNotification(unitCharacteristic, "BTSIG_Unknown_Unit");
+            if (unitCharacteristic != null)
+            {
+                Log($"Stop unit notification", LoggingLevel.Information);
+                unitCharacteristic.ValueChanged -= Notification_Unit;
+                await ClearNotification(unitCharacteristic, "BTSIG_Unknown_Unit");
+            }
         }
 
         private void Notification_Unit(GattCharacteristic sender, GattValueChangedEventArgs args)
@@ -276,17 +286,17 @@ namespace SylvacMarkVI
             UnitFlags unit = (UnitFlags)BitConverter.ToInt16(args.CharacteristicValue.ToArray(), 0);
             if (unit.HasFlag(UnitFlags.Metric))
             {
-                Log($"Unit change notification has METRIC flag");
+                Log($"Unit change notification METRIC", LoggingLevel.Information);
                 ApplicationData.Current.LocalSettings.Values[MetricDisplayKey] = true;
             }
             else if (unit.HasFlag(UnitFlags.Inch))
             {
-                Log($"Unit change notification has INCH flag");
+                Log($"Unit change notification INCH", LoggingLevel.Information);
                 ApplicationData.Current.LocalSettings.Values[MetricDisplayKey] = false;
             }
             else
             {
-                Log($"Notified of unit change has neither METRIC nor INCH flag: {unit}");
+                Log($"Notified of unit change has neither METRIC nor INCH flag: {unit}", LoggingLevel.Warning);
             }
         }
 
@@ -294,19 +304,34 @@ namespace SylvacMarkVI
         {
             measurementValue = BitConverter.ToInt32(args.CharacteristicValue.ToArray(), 0);
             Log($"Received measurement update {measurementValue}");
+            preMeasurement = null;
         }
 
         private async void DeviceDisconnect(bool tryReconnect = true)
         {
-            Log("Disconnecting device (if present)");
-            batteryLevelCharacteristic?.Service.Dispose();
+            Log("Disconnecting device (if present)", LoggingLevel.Information);
+            try
+            {
+                batteryLevelCharacteristic?.Service.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // This happens when Bluetooth device disappears, for example
+                // when it runs out of battery
+                Log($"Battery level service already disposed.");
+            }
             batteryLevelCharacteristic = null;
             device?.Dispose();
             device = null;
             if (tryReconnect)
             {
-                Log("Retrying connect");
+                preMeasurement = "Reconnecting...";
+                Log("Retrying connect", LoggingLevel.Information);
                 await Dispatcher.RunAsync(CoreDispatcherPriority.Low, DeviceConnect);
+            }
+            else
+            {
+                preMeasurement = "Disconnected";
             }
         }
 
@@ -317,6 +342,7 @@ namespace SylvacMarkVI
                 throw new InvalidOperationException("BluetoothLEAdvertisementWatcher already exists, should not be trying to create a new watcher.");
             }
 
+            preMeasurement = "Searching...";
             watcher = new BluetoothLEAdvertisementWatcher();
             watcher.Received += Bluetooth_Advertisement_Watcher_Received;
             watcher.Start();
@@ -352,8 +378,8 @@ namespace SylvacMarkVI
                     "GetBatteryLevel can't do anything if batteryLevelCharacteristic is NULL. Should have been setup upon DeviceConnect.");
             }
 
-            GattReadResult readResult = await batteryLevelCharacteristic.ReadValueAsync();
-            CheckStatus(readResult.Status, "batteryLevelCharacteristic.ReadValueAsync()");
+            GattReadResult readResult = await batteryLevelCharacteristic.ReadValueAsync(BluetoothCacheMode.Uncached);
+            CheckStatus(readResult.Status, "batteryLevelCharacteristic.ReadValueAsync(BluetoothCacheMode.Uncached)");
 
             batteryLevel = (UInt16)readResult.Value.GetByte(0);
             Log($"GetBatteryLevel : {batteryLevel}%");
@@ -366,56 +392,73 @@ namespace SylvacMarkVI
 
             tbLogging.Text = logger.Recent;
             tbClock.Text = DateTime.UtcNow.ToString("yyyyMMddHHmmssff");
-            if (ApplicationData.Current.LocalSettings.Values.ContainsKey(MetricDisplayKey))
-            {
-                isMetric = (bool)ApplicationData.Current.LocalSettings.Values[MetricDisplayKey];
-            }
-            else
-            {
-                // Typically metric measurements are reported in increments of 10
-                // Inch measurements are in increments of 12.7, so usually does not
-                //   divide evenly into 10 but sometimes it would.
-                // When we see something that doesn't neatly divide into 10, it's a
-                //   pretty good bet we're in inch mode. But if it divides into 10,
-                //   it is inconclusive.
-                if (0 != measurementValue % 10)
-                {
-                    isMetric = false;
-                    ApplicationData.Current.LocalSettings.Values[MetricDisplayKey] = false;
-                }
-                Log($"Inferring: units as metric? {isMetric}", LoggingLevel.Warning);
-            }
-            if (isMetric)
-            {
-                displayValue = measurementValue * Math.Pow(10, measurementExponent + 3); // 10^3 millimeters in a meter
-                tbMeasurementValue.Text = $"{displayValue,8:f3}mm";
-            }
-            else
-            {
-                displayValue = measurementValue * Math.Pow(10, measurementExponent);
-                displayValue *= 39.37008; // inches in a meter
-                tbMeasurementValue.Text = $"{displayValue,8:f5}\"";
-            }
 
-            if (DateTime.UtcNow - lastBatteryUpdate > batteryUpdate)
+            if (preMeasurement == null)
             {
-                lastBatteryUpdate = DateTime.UtcNow;
-                await GetBatteryLevel();
-                tbBatteryPercentage.Text = $"Estimate {batteryLevel}% Battery Remaining";
-
-                // Battery icon from Segoe MDL2 https://docs.microsoft.com/en-us/windows/uwp/design/style/segoe-ui-symbol-font
-                UInt16 glyphPoint;
-                if (batteryLevel > 95)
+                if (ApplicationData.Current.LocalSettings.Values.ContainsKey(MetricDisplayKey))
                 {
-                    glyphPoint = 0xE83F; // Battery10
+                    isMetric = (bool)ApplicationData.Current.LocalSettings.Values[MetricDisplayKey];
                 }
                 else
                 {
-                    // Battery0 - Battery9
-                    glyphPoint = 0xE850;
-                    glyphPoint += (UInt16)(batteryLevel / 10);
+                    // Typically metric measurements are reported in increments of 10
+                    // Inch measurements are in increments of 12.7, so usually does not
+                    //   divide evenly into 10 but sometimes it would.
+                    // When we see something that doesn't neatly divide into 10, it's a
+                    //   pretty good bet we're in inch mode. But if it divides into 10,
+                    //   it is inconclusive.
+                    if (0 != measurementValue % 10)
+                    {
+                        isMetric = false;
+                        ApplicationData.Current.LocalSettings.Values[MetricDisplayKey] = false;
+                    }
+                    Log($"Inferring: units as metric? {isMetric}", LoggingLevel.Warning);
                 }
-                fiBattery.Glyph = ((char)glyphPoint).ToString();
+
+                if (isMetric)
+                {
+                    displayValue = measurementValue * Math.Pow(10, measurementExponent + 3); // 10^3 millimeters in a meter
+                    tbMeasurementValue.Text = $"{displayValue,6:f3}mm";
+                }
+                else
+                {
+                    displayValue = measurementValue * Math.Pow(10, measurementExponent);
+                    displayValue *= 39.37008; // inches in a meter
+                    tbMeasurementValue.Text = $"{displayValue,8:f5}\"";
+                }
+
+                if (DateTime.UtcNow - lastBatteryUpdate > batteryUpdate)
+                {
+                    lastBatteryUpdate = DateTime.UtcNow;
+                    try
+                    {
+                        await GetBatteryLevel();
+                        tbBatteryPercentage.Text = $"Estimate {batteryLevel}% Battery Remaining";
+
+                        // Battery icon from Segoe MDL2 https://docs.microsoft.com/en-us/windows/uwp/design/style/segoe-ui-symbol-font
+                        UInt16 glyphPoint;
+                        if (batteryLevel > 95)
+                        {
+                            glyphPoint = 0xE83F; // Battery10
+                        }
+                        else
+                        {
+                            // Battery0 - Battery9
+                            glyphPoint = 0xE850;
+                            glyphPoint += (UInt16)(batteryLevel / 10);
+                        }
+                        fiBattery.Glyph = ((char)glyphPoint).ToString();
+                    }
+                    catch (ObjectDisposedException ode)
+                    {
+                        Log($"Bluetooth LE connection lost. {ode}", LoggingLevel.Information);
+                        DeviceDisconnect();
+                    }
+                }
+            }
+            else
+            {
+                tbMeasurementValue.Text = preMeasurement;
             }
         }
 
@@ -440,7 +483,7 @@ namespace SylvacMarkVI
         {
             var deferral = e.SuspendingOperation.GetDeferral();
             await StopNotifications();
-            Log("Cleaning up Bluetooth LE");
+            Log("Cleaning up Bluetooth LE", LoggingLevel.Information);
             batteryLevelCharacteristic?.Service.Dispose();
             batteryLevelCharacteristic = null;
             measurementCharacteristic?.Service.Dispose();
