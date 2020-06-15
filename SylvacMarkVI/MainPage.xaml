@@ -19,6 +19,18 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <TextBlock Grid.Column="0" Grid.Row="0" FontSize="24" Text="Sylvac Mark VI 'IoT Ready' Electronic Indicator Test Application"/>
+        <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Vertical">
+            <TextBlock x:Name="tbMeasurementValue"
+                        FontSize="60"
+                        FontFamily="Consolas"
+                        TextAlignment="Center"/>
+            <TextBlock x:Name="tbBatteryPercentage"
+                        FontSize="24"/>
+            <FontIcon x:Name="fiBattery"
+                      FontFamily="Segoe MDL2 Assets"
+                      FontSize="36"
+                      Glyph="&#xE850;"/>
+        </StackPanel>
         <TextBlock x:Name="tbLogging"
                    Grid.Row="2"
                    FontFamily="Consolas"
