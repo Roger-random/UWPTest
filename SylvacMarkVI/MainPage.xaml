@@ -38,6 +38,14 @@
                     Content="Resync"
                     HorizontalAlignment="Center"
                     Click="btResyncNotify_Click"/>
+            <TextBox x:Name="tbCommand"
+                     HorizontalAlignment="Center"/>
+            <Button x:Name="btSendCommand"
+                    Content="Send"
+                    HorizontalAlignment="Center"
+                    Click="btSendCommand_Click"/>
+            <TextBlock x:Name="tbResponse"
+                       HorizontalAlignment="Center"/>
         </StackPanel>
         <TextBlock x:Name="tbLogging"
                    Grid.Row="2"
