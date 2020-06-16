@@ -29,8 +29,59 @@ using Windows.UI.Xaml.Navigation;
 namespace SylvacMarkVI
 {
     /// <summary>
-    /// An empty page that can be used on its own or navigated to within a Frame.
+    /// Application that communicates with a Sylvac Mark VI digital indicator via Bluetooth LE
     /// </summary>
+
+    /* This is an annotated result of enumerating every service, characteristic,
+     * and descriptor on a particular unit of Sylvac Mark VI. This application
+     * only utilizes a subset, the remainder are here only as reference.
+
+    SY289 at Bluetooth address d5c0b41e979e
+    Device with ID BluetoothLE#BluetoothLE00:28:f8:38:c9:34-d5:c0:b4:1e:97:9e acquired.
+      Generic Access Service 00001800-0000-1000-8000-00805f9b34fb
+        Device Name Characteristic 00002a00-0000-1000-8000-00805f9b34fb property Read
+           Retrieved value 0x5359323839 = "SY289"
+        Appearance Characteristic 00002a01-0000-1000-8000-00805f9b34fb property Read
+           Retrieved value 0x4005
+        Peripheral preferred connection parameters Characteristic 00002a04-0000-1000-8000-00805f9b34fb property Read
+           Retrieved value 0xffffffff0000ffff
+      Generic Attribute Service 00001801-0000-1000-8000-00805f9b34fb
+      (Vendor specific?) Service c1b25000-caaf-6d0e-4c33-7dae30052840
+        Characteristic c1b25010-caaf-6d0e-4c33-7dae30052840 property Indicate
+          Client characteristic configuration Descriptor 00002902-0000-1000-8000-00805f9b34fb value 0x0000
+        Characteristic c1b25012-caaf-6d0e-4c33-7dae30052840 property WriteWithoutResponse
+        Characteristic c1b25013-caaf-6d0e-4c33-7dae30052840 property Notify
+          Client characteristic configuration Descriptor 00002902-0000-1000-8000-00805f9b34fb value 0x0000
+        Characteristic c1b25014-caaf-6d0e-4c33-7dae30052840 property Read, WriteWithoutResponse
+           Retrieved value 0x00
+        Characteristic c1b25015-caaf-6d0e-4c33-7dae30052840 property Read, WriteWithoutResponse
+           Retrieved value 0x00
+        Characteristic c1b25016-caaf-6d0e-4c33-7dae30052840 property Read, WriteWithoutResponse
+           Retrieved value 0x00
+      Device Information Service 0000180a-0000-1000-8000-00805f9b34fb
+        Model Number Characteristic 00002a24-0000-1000-8000-00805f9b34fb property Read
+           Retrieved value 0x383035363530343131 = "805650411"
+        Serial Number Characteristic 00002a25-0000-1000-8000-00805f9b34fb property Read
+           Retrieved value 0x3139343839303833 = "19489083"
+        Firmware Revision Characteristic 00002a26-0000-1000-8000-00805f9b34fb property Read
+           Retrieved value 0x72342e313072 = "r4.10r"
+        Manufacturer Name Characteristic 00002a29-0000-1000-8000-00805f9b34fb property Read
+           Retrieved value 0x53796c766163 = "Sylvac"
+        Hardware Revision Characteristic 00002a27-0000-1000-8000-00805f9b34fb property Read
+           Retrieved value 0x6e52463830303144 = "nRF8001D"
+      Battery Service Service 0000180f-0000-1000-8000-00805f9b34fb
+        Battery Level Characteristic 00002a19-0000-1000-8000-00805f9b34fb property Read
+           Retrieved value 0x32 = 50
+      (0x5000 + Bluetooth Base UUID) Service 00005000-0000-1000-8000-00805f9b34fb
+        Characteristic 00005020-0000-1000-8000-00805f9b34fb property Read, Notify
+          Characteristic Presentation Format Descriptor 00002904-0000-1000-8000-00805f9b34fb value 0x10f90127010000
+          Client characteristic configuration Descriptor 00002902-0000-1000-8000-00805f9b34fb value 0x0000
+           Retrieved value 0xffffff7f
+        Characteristic 00005021-0000-1000-8000-00805f9b34fb property Notify
+          Client characteristic configuration Descriptor 00002902-0000-1000-8000-00805f9b34fb value 0x0000
+
+     */
+
     public sealed partial class MainPage : Page
     {
         // Defined by Bluetooth Special Interest Group (BTSIG)
