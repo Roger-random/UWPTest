@@ -52,10 +52,6 @@ namespace SylvacMarkVI
         }
 
         // Defined by Sylvac
-        private Guid Sylvac_Service = new Guid("c1b25000-caaf-6d0e-4c33-7dae30052840");
-        private Guid Sylvac_Service_Indicate = new Guid("c1b25010-caaf-6d0e-4c33-7dae30052840");
-        private Guid Sylvac_Service_Input = new Guid("c1b25012-caaf-6d0e-4c33-7dae30052840");
-        private Guid Sylvac_Service_Output = new Guid("c1b25013-caaf-6d0e-4c33-7dae30052840");
         private const string IndicatorName = "SY289";
 
         // Defined by author of this application
@@ -68,9 +64,6 @@ namespace SylvacMarkVI
         private GattCharacteristic batteryLevelCharacteristic = null;
         private GattCharacteristic measurementCharacteristic = null;
         private GattCharacteristic unitCharacteristic = null;
-        private GattCharacteristic sylvacServiceIndicate = null;
-        private GattCharacteristic sylvacServiceInput = null;
-        private GattCharacteristic sylvacServiceOutput = null;
 
         // Objects for application housekeeping
         private DispatcherTimer activityUpdateTimer;
@@ -177,14 +170,6 @@ namespace SylvacMarkVI
                     GattClientCharacteristicConfigurationDescriptorValue.Notify);
             CheckStatus(notify, $"Set notify for: {message}");
         }
-        private async Task SetupIndication(GattCharacteristic characteristic, string message)
-        {
-            CheckCharacteristicFlag(characteristic, GattCharacteristicProperties.Indicate, message);
-            GattCommunicationStatus notify = await
-                characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
-                    GattClientCharacteristicConfigurationDescriptorValue.Indicate);
-            CheckStatus(notify, $"Set indicate for: {message}");
-        }
 
         private async Task ClearNotification(GattCharacteristic characteristic, string message)
         {
@@ -193,14 +178,6 @@ namespace SylvacMarkVI
                 characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
                     GattClientCharacteristicConfigurationDescriptorValue.None);
             CheckStatus(notify, $"Clear notify for: {message}");
-        }
-        private async Task ClearIndication(GattCharacteristic characteristic, string message)
-        {
-            CheckCharacteristicFlag(characteristic, GattCharacteristicProperties.Indicate, message);
-            GattCommunicationStatus notify = await
-                characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
-                    GattClientCharacteristicConfigurationDescriptorValue.None);
-            CheckStatus(notify, $"Clear indicate for: {message}");
         }
 
         private void CheckRead(GattCharacteristic characteristic, string message)
@@ -242,22 +219,6 @@ namespace SylvacMarkVI
             CheckStatus(getCharacteristics.Status, "GetCharacteristicsForUuidAsync(BTSIG_Unknown_Unit)");
 
             unitCharacteristic = getCharacteristics.Characteristics[0];
-
-            // Sylvac vendor specific characteristics
-            getServices = await device.GetGattServicesForUuidAsync(Sylvac_Service);
-            CheckStatus(getServices.Status, "GetGattServicesForUuidAsync(Sylvac_Service)");
-
-            getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(Sylvac_Service_Indicate);
-            CheckStatus(getCharacteristics.Status, "GetCharacteristicsForUuidAsync(Sylvac_Service_Indicate)");
-            sylvacServiceIndicate = getCharacteristics.Characteristics[0];
-
-            getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(Sylvac_Service_Input);
-            CheckStatus(getCharacteristics.Status, "GetCharacteristicsForUuidAsync(Sylvac_Service_Input)");
-            sylvacServiceInput = getCharacteristics.Characteristics[0];
-
-            getCharacteristics = await getServices.Services[0].GetCharacteristicsForUuidAsync(Sylvac_Service_Output);
-            CheckStatus(getCharacteristics.Status, "GetCharacteristicsForUuidAsync(Sylvac_Service_Output)");
-            sylvacServiceOutput = getCharacteristics.Characteristics[0];
 
             await CheckMeasurementPresentation();
             await StartNotifications();
@@ -301,12 +262,6 @@ namespace SylvacMarkVI
 
             await SetupNotification(unitCharacteristic, "BTSIG_Unknown_Unit");
             unitCharacteristic.ValueChanged += Notification_Unit;
-
-            await SetupNotification(sylvacServiceOutput, "Sylvac_Service_Output");
-            sylvacServiceOutput.ValueChanged += Notification_Sylvac_Service_Output;
-
-            await SetupIndication(sylvacServiceIndicate, "Sylvac_Service_Indicate");
-            sylvacServiceIndicate.ValueChanged += Notification_Sylvac_Service_Output;
         }
 
         private async Task StopNotifications()
@@ -323,20 +278,6 @@ namespace SylvacMarkVI
                 Log($"Stop unit notification", LoggingLevel.Information);
                 unitCharacteristic.ValueChanged -= Notification_Unit;
                 await ClearNotification(unitCharacteristic, "BTSIG_Unknown_Unit");
-            }
-
-            if (sylvacServiceIndicate != null)
-            {
-                Log($"Stop Sylvac vendor specific indication", LoggingLevel.Information);
-                sylvacServiceIndicate.ValueChanged -= Notification_Sylvac_Service_Output;
-                await ClearIndication(sylvacServiceIndicate, "Sylvac_Service_Indicate");
-            }
-
-            if (sylvacServiceOutput != null)
-            {
-                Log($"Stop Sylvac vendor specific notification", LoggingLevel.Information);
-                sylvacServiceOutput.ValueChanged -= Notification_Sylvac_Service_Output;
-                await ClearNotification(sylvacServiceOutput, "Sylvac_Service_Output");
             }
         }
 
@@ -552,54 +493,5 @@ namespace SylvacMarkVI
             device = null;
             deferral.Complete();
         }
-
-        private async void btSendCommand_Click(object sender, RoutedEventArgs e)
-        {
-            string input = tbCommand.Text + "\n";
-
-            if (input.Length > 0)
-            {
-                UTF8Encoding utf8 = new UTF8Encoding(false, true);
-                Byte[] encoded = utf8.GetBytes(input);
-                GattCommunicationStatus status = await sylvacServiceInput.WriteValueAsync(encoded.AsBuffer());
-                CheckStatus(status, "sylvacServiceInput.WriteValueAsync(encoded.AsBuffer())");
-                Log($"Sent {input}");
-            }
-        }
-        private void Notification_Sylvac_Service_Output(GattCharacteristic sender, GattValueChangedEventArgs args)
-        {
-            Byte[] bytes = args.CharacteristicValue.ToArray();
-            bool maybeASCII = true;
-            string nowString = DateTime.UtcNow.ToString("yyyyMMddHHmmssff");
-
-            string dataDump = $"Received {bytes.Length}: 0x";
-
-            foreach (Byte b in bytes)
-            {
-                dataDump += $"{b:x2}";
-                if (b < 32 || b > 126)
-                {
-                    maybeASCII = false;
-                }
-            }
-
-            if (maybeASCII)
-            {
-                try
-                {
-                    UTF8Encoding utf8 = new UTF8Encoding(false, true);
-                    string asString = utf8.GetString(bytes);
-                    dataDump += $" \"{asString}\"";
-                }
-                catch (Exception)
-                {
-                    // Problem trying to interpret as UTF-8, skipping text output.
-                }
-            }
-
-            Log(dataDump); // Log already adds a timestamp
-            tbResponse.Text = $"{nowString} {dataDump}";
-        }
-
     }
 }
