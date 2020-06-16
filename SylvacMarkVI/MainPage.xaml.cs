@@ -69,13 +69,21 @@ namespace SylvacMarkVI
         private DispatcherTimer activityUpdateTimer;
         private Logger logger = null;
 
+        // Track battery level (though not confident data is accurate)
         private int batteryLevel = 0;
-        private TimeSpan batteryUpdatePeriod = new TimeSpan(0, 1 /* minute */, 0);
+        private TimeSpan batteryUpdateInterval = new TimeSpan(1 /* hour */, 0, 0);
         private DateTime lastBatteryUpdate = DateTime.MinValue;
 
+        // Track we haven't lost communication with the indicator
+        private TimeSpan heartbeatInterval = new TimeSpan(0, 1 /* minute */, 0);
+        private DateTime lastCommunication = DateTime.MinValue;
+
+        // Value and exponent of measurement received via push notification
         private Int32 measurementValue = 0;
         private Int32 measurementExponent = 1;
 
+        // When non-null, a status string shown to the user to indicate
+        // measurement value is yet to come.
         private string preMeasurementText = null;
 
         public MainPage()
@@ -220,6 +228,7 @@ namespace SylvacMarkVI
             unitCharacteristic = getCharacteristics.Characteristics[0];
 
             preMeasurementText = "Waiting...";
+            await GetBatteryLevel();
             await CheckMeasurementPresentation();
             await StartNotifications();
         }
@@ -283,6 +292,7 @@ namespace SylvacMarkVI
 
         private void Notification_Unit(GattCharacteristic sender, GattValueChangedEventArgs args)
         {
+            lastCommunication = DateTime.UtcNow;
             UnitFlags unit = (UnitFlags)BitConverter.ToInt16(args.CharacteristicValue.ToArray(), 0);
             if (unit.HasFlag(UnitFlags.Metric))
             {
@@ -302,6 +312,7 @@ namespace SylvacMarkVI
 
         private void Notification_Measurement(GattCharacteristic sender, GattValueChangedEventArgs args)
         {
+            lastCommunication = DateTime.UtcNow;
             measurementValue = BitConverter.ToInt32(args.CharacteristicValue.ToArray(), 0);
             Log($"Received measurement update {measurementValue}");
             preMeasurementText = null;
@@ -378,6 +389,8 @@ namespace SylvacMarkVI
                     "GetBatteryLevel can't do anything if batteryLevelCharacteristic is NULL. Should have been setup upon DeviceConnect.");
             }
 
+            lastCommunication = DateTime.UtcNow;
+            lastBatteryUpdate = DateTime.UtcNow;
             GattReadResult readResult = await batteryLevelCharacteristic.ReadValueAsync(BluetoothCacheMode.Uncached);
             CheckStatus(readResult.Status, "batteryLevelCharacteristic.ReadValueAsync(BluetoothCacheMode.Uncached)");
 
@@ -432,10 +445,12 @@ namespace SylvacMarkVI
                 tbMeasurementValue.Text = preMeasurementText;
             }
 
+            // Battery level query also acts as a device heartbeat. Polled at
+            // regular intervals to make sure the device is still there.
             if (batteryLevelCharacteristic != null && 
-                DateTime.UtcNow - lastBatteryUpdate > batteryUpdatePeriod)
+                (DateTime.UtcNow - lastCommunication > heartbeatInterval ||
+                 DateTime.UtcNow - lastBatteryUpdate > batteryUpdateInterval))
             {
-                lastBatteryUpdate = DateTime.UtcNow;
                 try
                 {
                     await GetBatteryLevel();
