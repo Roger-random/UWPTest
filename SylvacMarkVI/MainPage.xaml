@@ -8,48 +8,59 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <TextBlock Grid.Column="0" Grid.Row="0"
-                   FontSize="24"
-                   TextAlignment="Center"
-                   Text="Sylvac Mark VI 'IoT Ready' Electronic Indicator Test Application"/>
-        <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Vertical">
-            <TextBlock x:Name="tbMeasurementValue"
-                        FontSize="60"
-                        FontFamily="Consolas"
-                        TextAlignment="Center"/>
-            <TextBlock x:Name="tbBatteryPercentage"
-                        FontSize="24"
-                        TextAlignment="Center"/>
-            <FontIcon x:Name="fiBattery"
-                      FontFamily="Segoe MDL2 Assets"
-                      FontSize="36"
-                      Glyph="&#xE850;"/>
-            <Button x:Name="btResyncNotify"
-                    Content="Resync"
-                    HorizontalAlignment="Center"
-                    Click="btResyncNotify_Click"/>
+    <RelativePanel>
+        <StackPanel RelativePanel.AlignTopWithPanel="True"
+                    RelativePanel.AlignRightWithPanel="True"
+                    RelativePanel.AlignLeftWithPanel="True"
+                    x:Name="tbTitle"
+                    Margin="12">
+            <TextBlock FontSize="16"
+                       TextAlignment="Center"
+                       Text="Sylvac Mark VI Electronic Indicator"/>
+            <TextBlock FontSize="30"
+                       TextAlignment="Center"
+                       Text="Test Application"/>
         </StackPanel>
+        <Grid RelativePanel.Below="tbTitle"
+              RelativePanel.Above="btResyncNotify"
+              RelativePanel.AlignRightWithPanel="True"
+              RelativePanel.AlignLeftWithPanel="True">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock x:Name="tbMeasurementValue"
+                           FontSize="60"
+                           FontFamily="Consolas"
+                           TextAlignment="Center"/>
+                <TextBlock x:Name="tbBatteryPercentage"
+                           FontSize="16"
+                           TextAlignment="Center"/>
+                <FontIcon x:Name="fiBattery"
+                          FontFamily="Segoe MDL2 Assets"
+                          FontSize="36"
+                          Glyph="&#xE850;"/>
+            </StackPanel>
+        </Grid>
+        <Button x:Name="btResyncNotify"
+                RelativePanel.Above="tbLogging"
+                RelativePanel.AlignRightWithPanel="True"
+                RelativePanel.AlignLeftWithPanel="True"
+                Content="Resync"
+                HorizontalAlignment="Center"
+                Click="btResyncNotify_Click"/>
         <TextBlock x:Name="tbLogging"
-                   Grid.Row="2"
+                   RelativePanel.Above="tbClock"
+                   RelativePanel.AlignRightWithPanel="True"
+                   RelativePanel.AlignLeftWithPanel="True"
                    FontFamily="Consolas"
                    FontSize="8"
                    Padding="4,4,4,0"
                    Text="0000000000000000 ...awaiting startup..."/>
         <TextBlock x:Name="tbClock"
-                   Grid.Row="3"
+                   RelativePanel.AlignBottomWithPanel="True"
+                   RelativePanel.AlignRightWithPanel="True"
+                   RelativePanel.AlignLeftWithPanel="True"
                    FontFamily="Consolas"
                    FontSize="8"
                    Padding="4,0,4,4"
                    Text="0000000000000000"/>
-    </Grid>
+    </RelativePanel>
 </Page>
