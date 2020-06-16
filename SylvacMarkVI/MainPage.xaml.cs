@@ -70,13 +70,13 @@ namespace SylvacMarkVI
         private Logger logger = null;
 
         private int batteryLevel = 0;
-        private TimeSpan batteryUpdate = new TimeSpan(0, 1 /* minute */, 0);
-        private DateTime lastBatteryUpdate = DateTime.MaxValue;
+        private TimeSpan batteryUpdatePeriod = new TimeSpan(0, 1 /* minute */, 0);
+        private DateTime lastBatteryUpdate = DateTime.MinValue;
 
         private Int32 measurementValue = 0;
         private Int32 measurementExponent = 1;
 
-        private string preMeasurement = null;
+        private string preMeasurementText = null;
 
         public MainPage()
         {
@@ -112,7 +112,7 @@ namespace SylvacMarkVI
             ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
             if (localSettings.Values.ContainsKey(BluetoothIDKey))
             {
-                preMeasurement = "Connecting...";
+                preMeasurementText = "Connecting...";
                 ulong bluetoothId = (ulong)localSettings.Values[BluetoothIDKey];
                 device = await BluetoothLEDevice.FromBluetoothAddressAsync(bluetoothId);
                 if (device != null)
@@ -158,7 +158,7 @@ namespace SylvacMarkVI
             if (!characteristic.CharacteristicProperties.HasFlag(flag))
             {
                 Log($"CheckCharacteristicFlag did not see {flag} for {message}", LoggingLevel.Error);
-                throw new IOException(message);
+                throw new InvalidOperationException(message);
             }
         }
 
@@ -204,7 +204,6 @@ namespace SylvacMarkVI
             CheckStatus(getCharacteristics.Status, "GetCharacteristicsForUuidAsync(BTSIG_BatteryLevel)");
 
             batteryLevelCharacteristic = getCharacteristics.Characteristics[0];
-            lastBatteryUpdate = DateTime.MinValue;
 
             // Push notification of measurement change
             getServices = await device.GetGattServicesForUuidAsync(BTSIG_Unknown_Service);
@@ -220,6 +219,7 @@ namespace SylvacMarkVI
 
             unitCharacteristic = getCharacteristics.Characteristics[0];
 
+            preMeasurementText = "Waiting...";
             await CheckMeasurementPresentation();
             await StartNotifications();
         }
@@ -304,7 +304,7 @@ namespace SylvacMarkVI
         {
             measurementValue = BitConverter.ToInt32(args.CharacteristicValue.ToArray(), 0);
             Log($"Received measurement update {measurementValue}");
-            preMeasurement = null;
+            preMeasurementText = null;
         }
 
         private async void DeviceDisconnect(bool tryReconnect = true)
@@ -325,13 +325,13 @@ namespace SylvacMarkVI
             device = null;
             if (tryReconnect)
             {
-                preMeasurement = "Reconnecting...";
+                preMeasurementText = "Reconnecting...";
                 Log("Retrying connect", LoggingLevel.Information);
                 await Dispatcher.RunAsync(CoreDispatcherPriority.Low, DeviceConnect);
             }
             else
             {
-                preMeasurement = "Disconnected";
+                preMeasurementText = "Disconnected";
             }
         }
 
@@ -342,7 +342,7 @@ namespace SylvacMarkVI
                 throw new InvalidOperationException("BluetoothLEAdvertisementWatcher already exists, should not be trying to create a new watcher.");
             }
 
-            preMeasurement = "Searching...";
+            preMeasurementText = "Searching...";
             watcher = new BluetoothLEAdvertisementWatcher();
             watcher.Received += Bluetooth_Advertisement_Watcher_Received;
             watcher.Start();
@@ -393,7 +393,7 @@ namespace SylvacMarkVI
             tbLogging.Text = logger.Recent;
             tbClock.Text = DateTime.UtcNow.ToString("yyyyMMddHHmmssff");
 
-            if (preMeasurement == null)
+            if (preMeasurementText == null)
             {
                 if (ApplicationData.Current.LocalSettings.Values.ContainsKey(MetricDisplayKey))
                 {
@@ -426,39 +426,40 @@ namespace SylvacMarkVI
                     displayValue *= 39.37008; // inches in a meter
                     tbMeasurementValue.Text = $"{displayValue,8:f5}\"";
                 }
-
-                if (DateTime.UtcNow - lastBatteryUpdate > batteryUpdate)
-                {
-                    lastBatteryUpdate = DateTime.UtcNow;
-                    try
-                    {
-                        await GetBatteryLevel();
-                        tbBatteryPercentage.Text = $"Estimate {batteryLevel}% Battery Remaining";
-
-                        // Battery icon from Segoe MDL2 https://docs.microsoft.com/en-us/windows/uwp/design/style/segoe-ui-symbol-font
-                        UInt16 glyphPoint;
-                        if (batteryLevel > 95)
-                        {
-                            glyphPoint = 0xE83F; // Battery10
-                        }
-                        else
-                        {
-                            // Battery0 - Battery9
-                            glyphPoint = 0xE850;
-                            glyphPoint += (UInt16)(batteryLevel / 10);
-                        }
-                        fiBattery.Glyph = ((char)glyphPoint).ToString();
-                    }
-                    catch (ObjectDisposedException ode)
-                    {
-                        Log($"Bluetooth LE connection lost. {ode}", LoggingLevel.Information);
-                        DeviceDisconnect();
-                    }
-                }
             }
             else
             {
-                tbMeasurementValue.Text = preMeasurement;
+                tbMeasurementValue.Text = preMeasurementText;
+            }
+
+            if (batteryLevelCharacteristic != null && 
+                DateTime.UtcNow - lastBatteryUpdate > batteryUpdatePeriod)
+            {
+                lastBatteryUpdate = DateTime.UtcNow;
+                try
+                {
+                    await GetBatteryLevel();
+                    tbBatteryPercentage.Text = $"Estimate {batteryLevel}% Battery Remaining";
+
+                    // Battery icon from Segoe MDL2 https://docs.microsoft.com/en-us/windows/uwp/design/style/segoe-ui-symbol-font
+                    UInt16 glyphPoint;
+                    if (batteryLevel > 95)
+                    {
+                        glyphPoint = 0xE83F; // Battery10
+                    }
+                    else
+                    {
+                        // Battery0 - Battery9
+                        glyphPoint = 0xE850;
+                        glyphPoint += (UInt16)(batteryLevel / 10);
+                    }
+                    fiBattery.Glyph = ((char)glyphPoint).ToString();
+                }
+                catch (ObjectDisposedException ode)
+                {
+                    Log($"Bluetooth LE connection lost. {ode}", LoggingLevel.Information);
+                    DeviceDisconnect();
+                }
             }
         }
 
