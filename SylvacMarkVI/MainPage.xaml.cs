@@ -375,14 +375,18 @@ namespace SylvacMarkVI
             try
             {
                 batteryLevelCharacteristic?.Service.Dispose();
+                measurementCharacteristic?.Service.Dispose();
+                // unitCharacteristic is from the same Service, doesn't need a separate Dispose() call.
             }
             catch (ObjectDisposedException)
             {
                 // This happens when Bluetooth device disappears, for example
                 // when it runs out of battery
-                Log($"Battery level service already disposed.");
+                Log($"DeviceDisconnect can't dispose services already disposed.");
             }
             batteryLevelCharacteristic = null;
+            measurementCharacteristic = null;
+            unitCharacteristic = null;
             device?.Dispose();
             device = null;
             if (tryReconnect)
@@ -543,8 +547,27 @@ namespace SylvacMarkVI
 
         private async void btResyncNotify_Click(object sender, RoutedEventArgs e)
         {
-            await StopNotifications();
-            await StartNotifications();
+            try
+            {
+                await StopNotifications();
+            }
+            catch(Exception error)
+            {
+                // Encountered problems trying to stop notifications, but this is not
+                // necessary a fatal issue...
+                Log($"Resync attempt to stop notifications: {error}", LoggingLevel.Error);
+            }
+            try
+            {
+                await StartNotifications();
+            }
+            catch(Exception error)
+            {
+                // Encountered problems trying to restart notifications, this is a
+                // bigger problem. Try disconnect & reconnect with device.
+                Log($"Resync attempt to restart notifications: {error}", LoggingLevel.Error);
+                DeviceDisconnect(/* tryReconnect = */ true);
+            }
         }
         private async void App_Suspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e)
         {
