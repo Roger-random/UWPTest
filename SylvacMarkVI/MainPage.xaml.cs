@@ -15,6 +15,7 @@ using Windows.Foundation.Collections;
 using Windows.Foundation.Diagnostics;
 using Windows.Storage;
 using Windows.Storage.Streams;
+using Windows.System.Display;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -118,6 +119,7 @@ namespace SylvacMarkVI
 
         // Objects for application housekeeping
         private DispatcherTimer activityUpdateTimer;
+        private DisplayRequest displayRequest;
         private Logger logger = null;
 
         // Track battery level (though not confident data is accurate)
@@ -155,6 +157,11 @@ namespace SylvacMarkVI
 
             // Queue task to connect to device via BLE
             _ = Dispatcher.RunAsync(CoreDispatcherPriority.Low, DeviceConnect);
+
+            // While we are running, don't blank out the screen or activate screen saver.
+            // https://blogs.windows.com/windowsdeveloper/2016/05/24/how-to-prevent-screen-locks-in-your-uwp-apps/
+            displayRequest = new DisplayRequest();
+            displayRequest.RequestActive();
 
             // Listen for application events
             Application.Current.EnteredBackground += App_EnteredBackground;
