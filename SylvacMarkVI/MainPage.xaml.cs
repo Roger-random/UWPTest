@@ -156,8 +156,9 @@ namespace SylvacMarkVI
             // Queue task to connect to device via BLE
             _ = Dispatcher.RunAsync(CoreDispatcherPriority.Low, DeviceConnect);
 
-            // Listen for time to cleanup
+            // Listen for application events
             Application.Current.Suspending += App_Suspending;
+            Application.Current.Resuming += App_Resuming;
         }
 
         private async void DeviceConnect()
@@ -582,6 +583,11 @@ namespace SylvacMarkVI
             device.Dispose();
             device = null;
             deferral.Complete();
+        }
+        private async void App_Resuming(object sender, object e)
+        {
+            // Queue task to connect to device via BLE
+            await Dispatcher.RunAsync(CoreDispatcherPriority.Low, DeviceConnect);
         }
     }
 }

@@ -34,23 +34,23 @@ namespace SylvacMarkVI
 
         public async void OpenAsync()
         {
-            if (logFile == null)
+            if (logFile == null || !logFile.IsAvailable)
             {
                 string logFileName = DateTime.UtcNow.ToString("yyyyMMddHHmmssff") + ".log";
                 logFile = await ApplicationData.Current.TemporaryFolder.CreateFileAsync(logFileName,
                     Windows.Storage.CreationCollisionOption.OpenIfExists);
                 Debug.WriteLine($"Opened log file {logFile.Path}");
                 Log("Log file opened.", LoggingLevel.Information);
+                Log(logFile.Path, LoggingLevel.Information);
             }
             else
             {
-                Log("Ignoring extraneous call to Logger.Open()", LoggingLevel.Warning);
+                Log("Ignoring extraneous call to Logger.Open(), this is normal for OnResuming", LoggingLevel.Warning);
             }
         }
 
         public void Close()
         {
-            Log("Closing log file.", LoggingLevel.Information);
             WriteLogBlock();
         }
 
@@ -69,6 +69,8 @@ namespace SylvacMarkVI
 
         private async void WriteLogBlock()
         {
+            Log("Writing out log block", LoggingLevel.Information);
+
             List<String> oldBlock = logBlock;
             logBlock = new List<String>(LOG_BLOCK_MAX);
             if (logBlockQueue.Count >= LOG_BLOCK_QUEUE_SIZE)
