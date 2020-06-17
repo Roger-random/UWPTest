@@ -28,7 +28,7 @@ namespace SylvacMarkVI
             logBlockQueue = new Queue<List<String>>(LOG_BLOCK_QUEUE_SIZE);
 
             recentLevel = LoggingLevel.Information;
-            recentCount = 5;
+            recentCount = 10;
             recentLogs = new Queue<String>(recentCount);
         }
 
