@@ -157,8 +157,26 @@ namespace SylvacMarkVI
             _ = Dispatcher.RunAsync(CoreDispatcherPriority.Low, DeviceConnect);
 
             // Listen for application events
+            Application.Current.EnteredBackground += App_EnteredBackground;
+            Application.Current.LeavingBackground += App_LeavingBackground;
             Application.Current.Suspending += App_Suspending;
             Application.Current.Resuming += App_Resuming;
+        }
+
+        private void App_EnteredBackground(object sender, Windows.ApplicationModel.EnteredBackgroundEventArgs e)
+        {
+            Log("App.EnteredBackground");
+
+            // No need to update UI while in background
+            activityUpdateTimer.Stop();
+        }
+
+        private void App_LeavingBackground(object sender, Windows.ApplicationModel.LeavingBackgroundEventArgs e)
+        {
+            Log("App.LeavingBackground");
+
+            // Resuming updating UI when brought out of background
+            activityUpdateTimer.Start();
         }
 
         private async void DeviceConnect()
