@@ -34,11 +34,12 @@ namespace SylvacMarkVI
     /// </summary>
 
     /* This is an annotated result of enumerating every service, characteristic,
-     * and descriptor on a particular unit of Sylvac Mark VI. This application
-     * only utilizes a subset, the remainder are here only as reference.
+     * and descriptor on a particular unit of Sylvac Mark VI. Identifiers specific
+     * to this unit has been obfuscated.
+     * This application only utilizes a subset, the remainder are here only as reference.
 
-    SY289 at Bluetooth address d5c0b41e979e
-    Device with ID BluetoothLE#BluetoothLE00:28:f8:38:c9:34-d5:c0:b4:1e:97:9e acquired.
+    SY289 at Bluetooth address (obfuscated)
+    Device with ID BluetoothLE#BluetoothLE00:28:f8:38:c9:34-(obfuscated) acquired.
       Generic Access Service 00001800-0000-1000-8000-00805f9b34fb
         Device Name Characteristic 00002a00-0000-1000-8000-00805f9b34fb property Read
            Retrieved value 0x5359323839 = "SY289"
@@ -63,7 +64,7 @@ namespace SylvacMarkVI
         Model Number Characteristic 00002a24-0000-1000-8000-00805f9b34fb property Read
            Retrieved value 0x383035363530343131 = "805650411"
         Serial Number Characteristic 00002a25-0000-1000-8000-00805f9b34fb property Read
-           Retrieved value 0x3139343839303833 = "19489083"
+           Retrieved value (obfuscated)
         Firmware Revision Characteristic 00002a26-0000-1000-8000-00805f9b34fb property Read
            Retrieved value 0x72342e313072 = "r4.10r"
         Manufacturer Name Characteristic 00002a29-0000-1000-8000-00805f9b34fb property Read
