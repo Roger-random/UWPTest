@@ -28,3 +28,20 @@ keyboard and mouse events for interactivity. Combines the 3D printer control
 logic of __PollingComms__ with the camera preview of __CameraTest__ and
 put them in an interactive application so we could navigate X/Y/Z space while
 watching camera feedback.
+5. __HelloBLE__ : An exploration into communication with Bluetooth Low Energy
+peripherals via
+[UWP APIs for GAP and GATT protocols.](https://docs.microsoft.com/en-us/windows/uwp/devices-sensors/bluetooth-low-energy-overview)
+Upon button click, application will set up a watcher to listen for Bluetooth
+LE advertisements and, for every unique address heard broadcasting, enumerate
+all available services, characteristics, and descriptors.
+6. __SylvacMarkVI__ : Applying lessons learned in __HelloBLE__ to a specific
+Bluetooth LE device:
+[Sylvac Mark VI digital indicator.](http://www.fowlerprecision.com/Products/Electronic-Indicators/Fowler-0-1-25mm-Mark-VI-Electronic-Indicator-with-Bluetooth-Technology-54-530-355-0.html)
+Periodically queries the battery level characteristic which also serves
+as a heartbeat check to ensure communication is still active.
+Subscribes to notification of distance (always sent in meters) and unit
+(whether to convert meters to inch for display.) Device has additional
+characteristics that are not used in this demonstration app.
+Also an experiment to find one way (probably not the best way...) to handle
+Bluetooth peripherals through application suspend/resume lifecycle, and
+smaller events such as going into background and preventing screen saver.
