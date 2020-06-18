@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using Windows.Foundation.Diagnostics;
 using Windows.Storage;
 
@@ -49,9 +50,9 @@ namespace SylvacMarkVI
             }
         }
 
-        public void Close()
+        public async void Close()
         {
-            WriteLogBlock();
+            await WriteLogBlock();
         }
 
         public string Recent
@@ -67,7 +68,7 @@ namespace SylvacMarkVI
             }
         }
 
-        private async void WriteLogBlock()
+        public async Task WriteLogBlock()
         {
             Log("Writing out log block", LoggingLevel.Information);
 
@@ -82,13 +83,13 @@ namespace SylvacMarkVI
             await FileIO.AppendLinesAsync(logFile, oldBlock);
         }
 
-        private void AddLogLine(string logLine, LoggingLevel level)
+        private async Task AddLogLine(string logLine, LoggingLevel level)
         {
             Debug.WriteLine(logLine);
             logBlock.Add(logLine);
             if (logBlock.Count >= LOG_BLOCK_MAX)
             {
-                WriteLogBlock();
+                await WriteLogBlock();
             }
 
             if (level >= recentLevel)
@@ -101,7 +102,7 @@ namespace SylvacMarkVI
             }
         }
 
-        public void Log(string message, LoggingLevel level = LoggingLevel.Verbose)
+        public async void Log(string message, LoggingLevel level = LoggingLevel.Verbose)
         {
             StringReader sr = null;
             string msgLine = null;
@@ -118,11 +119,11 @@ namespace SylvacMarkVI
                 DateTime.UtcNow.ToString("yyyyMMddHHmmssff"),
                 (int)level,
                 msgLine);
-            AddLogLine(logLine, level);
+            await AddLogLine(logLine, level);
             while (null != (msgLine = sr.ReadLine()))
             {
                 logLine = String.Format($"                   {msgLine}");
-                AddLogLine(logLine, level);
+                await AddLogLine(logLine, level);
             }
         }
     }

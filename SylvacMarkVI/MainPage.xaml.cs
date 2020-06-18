@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.ServiceModel.Channels;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -191,8 +192,7 @@ namespace SylvacMarkVI
         {
             if (device != null)
             {
-                Log("DeviceConnect should not be called when device is already connected", LoggingLevel.Error);
-                throw new InvalidOperationException("DeviceConnect should not be called when device is already connected");
+                InvalidOperation("DeviceConnect should not be called when device is already connected");
             }
 
             ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
@@ -211,7 +211,7 @@ namespace SylvacMarkVI
                     catch(IOException e)
                     {
                         Log($"Failed to obtain BLE characteristics. {e.Message}", LoggingLevel.Error);
-                        DeviceDisconnect();
+                        await DeviceDisconnect();
                     }
                 }
                 else
@@ -219,7 +219,7 @@ namespace SylvacMarkVI
                     Log($"Failed to acquire BluetoothLEDevice on {bluetoothId:x}", LoggingLevel.Error);
                     // Remove failed key from cache
                     localSettings.Values.Remove(BluetoothIDKey);
-                    DeviceDisconnect();
+                    await DeviceDisconnect();
                 }
             }
             else
@@ -233,8 +233,7 @@ namespace SylvacMarkVI
         {
             if(GattCommunicationStatus.Success != status)
             {
-                Log($"CheckStatus throwing IOException {status} {message}", LoggingLevel.Error);
-                throw new IOException($"{status} " + message);
+                IOError($"CheckStatus throwing IOException {status} {message}");
             }
             Log($"GattCommunicationStatus.Success: {message}");
         }
@@ -243,8 +242,7 @@ namespace SylvacMarkVI
         {
             if (!characteristic.CharacteristicProperties.HasFlag(flag))
             {
-                Log($"CheckCharacteristicFlag did not see {flag} for {message}", LoggingLevel.Error);
-                throw new InvalidOperationException(message);
+                InvalidOperation($"CheckCharacteristicFlag did not see {flag} for {message}");
             }
         }
 
@@ -275,6 +273,12 @@ namespace SylvacMarkVI
         {
             Log(message, LoggingLevel.Error);
             throw new IOException(message);
+        }
+
+        private void InvalidOperation(string message)
+        {
+            Log(message, LoggingLevel.Error);
+            throw new InvalidOperationException(message);
         }
 
         private async Task GetBLECharacteristics()
@@ -353,18 +357,32 @@ namespace SylvacMarkVI
 
         private async Task StopNotifications()
         {
-            if (measurementCharacteristic != null)
+            try
             {
-                Log($"Stop measurement notification", LoggingLevel.Information);
-                measurementCharacteristic.ValueChanged -= Notification_Measurement;
-                await ClearNotification(measurementCharacteristic, "BTSIG_Unknown_Measurement");
+                if (measurementCharacteristic != null)
+                {
+                    Log($"Stop measurement notification", LoggingLevel.Information);
+                    measurementCharacteristic.ValueChanged -= Notification_Measurement;
+                    await ClearNotification(measurementCharacteristic, "BTSIG_Unknown_Measurement");
+                }
+            }
+            catch (Exception)
+            {
+                Log($"Failed to stop measurement notification properly.", LoggingLevel.Information);
             }
 
-            if (unitCharacteristic != null)
+            try
             {
-                Log($"Stop unit notification", LoggingLevel.Information);
-                unitCharacteristic.ValueChanged -= Notification_Unit;
-                await ClearNotification(unitCharacteristic, "BTSIG_Unknown_Unit");
+                if (unitCharacteristic != null)
+                {
+                    Log($"Stop unit notification", LoggingLevel.Information);
+                    unitCharacteristic.ValueChanged -= Notification_Unit;
+                    await ClearNotification(unitCharacteristic, "BTSIG_Unknown_Unit");
+                }
+            }
+            catch (Exception)
+            {
+                Log($"Failed to stop unit notification properly.", LoggingLevel.Information);
             }
         }
 
@@ -396,7 +414,7 @@ namespace SylvacMarkVI
             preMeasurementText = null;
         }
 
-        private async void DeviceDisconnect(bool tryReconnect = true)
+        private async Task DeviceDisconnect(bool tryReconnect = true)
         {
             Log("Disconnecting device (if present)", LoggingLevel.Information);
             try
@@ -405,16 +423,23 @@ namespace SylvacMarkVI
                 measurementCharacteristic?.Service.Dispose();
                 // unitCharacteristic is from the same Service, doesn't need a separate Dispose() call.
             }
-            catch (ObjectDisposedException)
+            catch (Exception)
             {
                 // This happens when Bluetooth device disappears, for example
                 // when it runs out of battery
-                Log($"DeviceDisconnect can't dispose services already disposed.");
+                Log($"DeviceDisconnect can't dispose services, but was trying to disconnect anyway.");
             }
             batteryLevelCharacteristic = null;
             measurementCharacteristic = null;
             unitCharacteristic = null;
-            device?.Dispose();
+            try
+            {
+                device?.Dispose();
+            }
+            catch (Exception)
+            {
+                Log($"Device dispose failed, but was trying to disconnect anyway.");
+            }
             device = null;
             if (tryReconnect)
             {
@@ -432,7 +457,7 @@ namespace SylvacMarkVI
         {
             if (watcher != null)
             {
-                throw new InvalidOperationException("BluetoothLEAdvertisementWatcher already exists, should not be trying to create a new watcher.");
+                InvalidOperation("BluetoothLEAdvertisementWatcher already exists, should not be trying to create a new watcher.");
             }
 
             preMeasurementText = "Searching...";
@@ -467,8 +492,7 @@ namespace SylvacMarkVI
         {
             if (batteryLevelCharacteristic == null)
             {
-                throw new InvalidOperationException(
-                    "GetBatteryLevel can't do anything if batteryLevelCharacteristic is NULL. Should have been setup upon DeviceConnect.");
+                InvalidOperation("GetBatteryLevel can't do anything if batteryLevelCharacteristic is NULL. Should have been setup upon DeviceConnect.");
             }
 
             lastCommunication = DateTime.UtcNow;
@@ -552,19 +576,23 @@ namespace SylvacMarkVI
                     }
                     fiBattery.Glyph = ((char)glyphPoint).ToString();
                 }
-                catch (ObjectDisposedException ode)
+                catch (Exception err)
                 {
-                    Log($"Bluetooth LE connection lost. {ode}", LoggingLevel.Information);
-                    DeviceDisconnect();
+                    Log($"Bluetooth LE connection lost, trying to reconnect. {err}", LoggingLevel.Error);
+                    await Dispatcher.RunAsync(CoreDispatcherPriority.Low, DeviceConnect);
                 }
             }
         }
 
-        private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
+        private async void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
         {
             if (logger != null)
             {
                 logger.Log(t, level);
+                if (level > LoggingLevel.Information)
+                {
+                    await logger.WriteLogBlock();
+                }
             }
             else
             {
@@ -593,21 +621,14 @@ namespace SylvacMarkVI
                 // Encountered problems trying to restart notifications, this is a
                 // bigger problem. Try disconnect & reconnect with device.
                 Log($"Resync attempt to restart notifications: {error}", LoggingLevel.Error);
-                DeviceDisconnect(/* tryReconnect = */ true);
+                await DeviceDisconnect(/* tryReconnect = */ true);
             }
         }
         private async void App_Suspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e)
         {
             var deferral = e.SuspendingOperation.GetDeferral();
             await StopNotifications();
-            Log("Cleaning up Bluetooth LE", LoggingLevel.Information);
-            batteryLevelCharacteristic?.Service.Dispose();
-            batteryLevelCharacteristic = null;
-            measurementCharacteristic?.Service.Dispose();
-            measurementCharacteristic = null;
-            unitCharacteristic = null;
-            device.Dispose();
-            device = null;
+            await DeviceDisconnect(/* tryReconnect = */ false);
             deferral.Complete();
         }
         private async void App_Resuming(object sender, object e)
