@@ -7,14 +7,14 @@
   IgnorableNamespaces="uap mp">
 
   <Identity
-    Name="d8d625d6-4ed7-4ce5-87c9-61a57acff261"
+    Name="com.regorlas.futekusb220"
     Publisher="CN=roger"
-    Version="1.0.0.0" />
+    Version="0.1.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="d8d625d6-4ed7-4ce5-87c9-61a57acff261" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>FutekUSB220</DisplayName>
+    <DisplayName>Futek USB220 Test</DisplayName>
     <PublisherDisplayName>roger</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -32,10 +32,10 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="FutekUSB220.App">
       <uap:VisualElements
-        DisplayName="FutekUSB220"
+        DisplayName="Futek USB220 Test"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png"
-        Description="FutekUSB220"
+        Description="Futek USB220 Test"
         BackgroundColor="transparent">
         <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png"/>
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
@@ -45,5 +45,10 @@
 
   <Capabilities>
     <Capability Name="internetClient" />
+    <DeviceCapability Name="serialcommunication">
+      <Device Id="any">
+        <Function Type="name:serialPort" />
+      </Device>
+    </DeviceCapability>
   </Capabilities>
 </Package>
