@@ -9,6 +9,27 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid>
-
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Column="0" Grid.Row="0" FontSize="24" Text="Futek USB220 Test Application"/>
+        <TextBlock x:Name="tbLogging"
+                   Grid.Row="2"
+                   FontFamily="Consolas"
+                   FontSize="8"
+                   Padding="4,4,4,0"
+                   Text="0000000000000000 ...awaiting startup..."/>
+        <TextBlock x:Name="tbClock"
+                   Grid.Row="3"
+                   FontFamily="Consolas"
+                   FontSize="8"
+                   Padding="4,0,4,4"
+                   Text="0000000000000000"/>
     </Grid>
 </Page>

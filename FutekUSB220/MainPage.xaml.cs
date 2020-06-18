@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Foundation.Diagnostics;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -22,9 +24,38 @@ namespace FutekUSB220
     /// </summary>
     public sealed partial class MainPage : Page
     {
+        private DispatcherTimer activityUpdateTimer;
+        private Logger logger = null;
+
         public MainPage()
         {
             this.InitializeComponent();
+            activityUpdateTimer = new DispatcherTimer();
+            activityUpdateTimer.Tick += ActivityUpdateTimer_Tick;
+            activityUpdateTimer.Interval = new TimeSpan(0, 0, 0, 0, 250 /* milliseconds */);
+            activityUpdateTimer.Start();
+
+            if (Application.Current as App != null)
+            {
+                logger = ((App)Application.Current).logger;
+            }
+        }
+        private void ActivityUpdateTimer_Tick(object sender, object e)
+        {
+            tbLogging.Text = logger.Recent;
+            tbClock.Text = DateTime.UtcNow.ToString("yyyyMMddHHmmssff");
+        }
+
+        private void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
+        {
+            if (logger != null)
+            {
+                logger.Log(t, level);
+            }
+            else
+            {
+                Debug.WriteLine("WARNING: Logger not available, log message lost.");
+            }
         }
     }
 }
