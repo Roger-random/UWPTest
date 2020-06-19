@@ -37,10 +37,6 @@ namespace FutekUSB220
         private DispatcherTimer activityUpdateTimer;
         private Logger logger = null;
 
-        private TimeSpan _sensorReportInterval = new TimeSpan(0, 0, 5);
-        private DateTime _previousSensorReport = DateTime.MinValue;
-        private UInt64 _sensorUpdatesSinceLastReport = 0;
-
         private SerialDevice _serialDevice = null;
         private DataReader _dataReader = null;
 
@@ -155,16 +151,7 @@ namespace FutekUSB220
             try
             {
                 SensorValue = await ReadSensorReport();
-                if (DateTime.UtcNow - _previousSensorReport > _sensorReportInterval)
-                {
-                    Log($"Sensor updated {_sensorUpdatesSinceLastReport} times in the past {_sensorReportInterval.TotalSeconds} seconds.");
-                    _previousSensorReport = DateTime.UtcNow;
-                    _sensorUpdatesSinceLastReport = 0;
-                }
-                else
-                {
-                    _sensorUpdatesSinceLastReport++;
-                }
+
                 await Dispatcher.RunAsync(CoreDispatcherPriority.Low, UpdateSensorValue);
             }
             catch (Exception e)
