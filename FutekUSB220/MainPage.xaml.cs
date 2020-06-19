@@ -76,7 +76,7 @@ namespace FutekUSB220
         {
             tbLogging.Text = logger.Recent;
             tbClock.Text = DateTime.UtcNow.ToString("yyyyMMddHHmmssff");
-            tbSensorValue.Text = $"{SensorValue} lbs";
+            tbSensorValue.Text = $"{SensorValue,9:f4} lbs";
         }
 
         private async void Log(string t, LoggingLevel level = LoggingLevel.Verbose)

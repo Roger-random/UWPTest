@@ -8,29 +8,46 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <TextBlock Grid.Column="0" Grid.Row="0" FontSize="24" Text="Futek USB220 Test Application"/>
-        <TextBlock x:Name="tbSensorValue" FontSize="48" Grid.Row="1" Text="Connecting..."/>
+    <RelativePanel>
+        <StackPanel RelativePanel.AlignTopWithPanel="True"
+                    RelativePanel.AlignRightWithPanel="True"
+                    RelativePanel.AlignLeftWithPanel="True"
+                    x:Name="spTitle"
+                    Margin="12">
+            <TextBlock FontSize="16"
+                       TextAlignment="Center"
+                       Text="Futek USB220 + LCF450"/>
+            <TextBlock FontSize="30"
+                       TextAlignment="Center"
+                       Text="Test Application"/>
+        </StackPanel>
+        <Grid RelativePanel.Below="spTitle"
+              RelativePanel.Above="tbLogging"
+              RelativePanel.AlignRightWithPanel="True"
+              RelativePanel.AlignLeftWithPanel="True">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock x:Name="tbSensorValue"
+                   FontFamily="Consolas"
+                   FontSize="48"
+                   TextAlignment="Center"
+                   Text="Waiting..."/>
+            </StackPanel>
+        </Grid>
         <TextBlock x:Name="tbLogging"
-                   Grid.Row="2"
+                   RelativePanel.Above="tbClock"
+                   RelativePanel.AlignRightWithPanel="True"
+                   RelativePanel.AlignLeftWithPanel="True"
                    FontFamily="Consolas"
                    FontSize="8"
                    Padding="4,4,4,0"
                    Text="0000000000000000 ...awaiting startup..."/>
         <TextBlock x:Name="tbClock"
-                   Grid.Row="3"
+                   RelativePanel.AlignBottomWithPanel="True"
+                   RelativePanel.AlignRightWithPanel="True"
+                   RelativePanel.AlignLeftWithPanel="True"
                    FontFamily="Consolas"
                    FontSize="8"
                    Padding="4,0,4,4"
                    Text="0000000000000000"/>
-    </Grid>
+    </RelativePanel>
 </Page>
