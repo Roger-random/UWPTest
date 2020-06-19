@@ -19,6 +19,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <TextBlock Grid.Column="0" Grid.Row="0" FontSize="24" Text="Futek USB220 Test Application"/>
+        <TextBlock x:Name="tbSensorValue" FontSize="48" Grid.Row="1" Text="Connecting..."/>
         <TextBlock x:Name="tbLogging"
                    Grid.Row="2"
                    FontFamily="Consolas"
