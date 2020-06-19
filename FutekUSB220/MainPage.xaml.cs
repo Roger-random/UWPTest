@@ -69,7 +69,7 @@ namespace FutekUSB220
 
         private void Application_Suspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e)
         {
-            Disconnect();
+            Disconnect(/* tryReconnect */ false);
         }
 
         private void ActivityUpdateTimer_Tick(object sender, object e)
@@ -157,7 +157,8 @@ namespace FutekUSB220
             }
             catch (Exception e)
             {
-                Log($"UpdateSensorValue will not requeue itself due to {e.ToString()}", LoggingLevel.Error);
+                Log($"ReadSensorReport failed due to {e.ToString()}", LoggingLevel.Error);
+                Disconnect(true);
             }
         }
 
@@ -183,7 +184,7 @@ namespace FutekUSB220
         {
             try
             {
-                Log($"Check if Futek USB220 is at {deviceId}");
+                Log($"Check if Futek USB220 is at {deviceId}", LoggingLevel.Information);
                 _serialDevice = await SerialDevice.FromIdAsync(deviceId);
                 if (_serialDevice != null)
                 {
@@ -198,31 +199,36 @@ namespace FutekUSB220
                     _dataReader.UnicodeEncoding = UnicodeEncoding.Utf8;
 
                     double initialValue = await ReadSensorReport();
-                    Log($"Successfully read an initial value of {initialValue} lbs.");
+                    Log($"Successfully read an initial value of {initialValue} lbs.", LoggingLevel.Information);
 
                     ApplicationData.Current.LocalSettings.Values[FutekUSB220DeviceId] = deviceId;
 
                     return true;
                 }
-                Log($"Failed to acquire SerialDevice from {deviceId}");
+                Log($"Failed to acquire SerialDevice from {deviceId}", LoggingLevel.Information);
             }
             catch (Exception e)
             {
-                Log($"Probably not a Futek USB220 at {deviceId}");
-                Log($"Due to error encountered: {e.ToString()}");
-                Disconnect();
+                Log($"Probably not a Futek USB220 at {deviceId}", LoggingLevel.Information);
+                Log($"Due to error encountered: {e.ToString()}", LoggingLevel.Information);
+                Disconnect(/* tryReconnect */ false);
             }
 
             return false;
         }
 
-        private void Disconnect()
+        private async void Disconnect(bool tryReconnect)
         {
-            Log("Disconnect Futek USB220");
+            Log("Disconnect Futek USB220", LoggingLevel.Information);
             _dataReader?.Dispose();
             _dataReader = null;
             _serialDevice?.Dispose();
             _serialDevice = null;
+            if (tryReconnect)
+            {
+                await Connect((string)ApplicationData.Current.LocalSettings.Values[FutekUSB220DeviceId]);
+                await Dispatcher.RunAsync(CoreDispatcherPriority.Low, UpdateSensorValue);
+            }
         }
 
         private async void EnumerateSerialDevices()
