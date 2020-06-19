@@ -64,6 +64,7 @@ namespace FutekUSB220
         private async void Application_Resuming(object sender, object e)
         {
             await Connect((string)ApplicationData.Current.LocalSettings.Values[FutekUSB220DeviceId]);
+            await Dispatcher.RunAsync(CoreDispatcherPriority.Low, UpdateSensorValue);
         }
 
         private void Application_Suspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e)
