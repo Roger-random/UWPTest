@@ -111,11 +111,11 @@ namespace FutekUSB220
         /// </summary>
         /// <param name="sender">The source of the suspend request.</param>
         /// <param name="e">Details about the suspend request.</param>
-        private void OnSuspending(object sender, SuspendingEventArgs e)
+        private async void OnSuspending(object sender, SuspendingEventArgs e)
         {
             var deferral = e.SuspendingOperation.GetDeferral();
             logger.Log("App.OnSuspending", LoggingLevel.Information);
-            logger.Close();
+            await logger.WriteLogBlock();
             deferral.Complete();
         }
     }

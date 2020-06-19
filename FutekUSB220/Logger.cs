@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using Windows.Foundation.Diagnostics;
 using Windows.Storage;
 
@@ -49,11 +50,6 @@ namespace FutekUSB220
             }
         }
 
-        public void Close()
-        {
-            WriteLogBlock();
-        }
-
         public string Recent
         {
             get
@@ -67,9 +63,10 @@ namespace FutekUSB220
             }
         }
 
-        private async void WriteLogBlock()
+        public async Task WriteLogBlock()
         {
-            Log("Writing out log block", LoggingLevel.Information);
+            // Potential infinite loop here, put back in after figure out how to address
+            // Log("Writing out log block", LoggingLevel.Information);
 
             List<String> oldBlock = logBlock;
             logBlock = new List<String>(LOG_BLOCK_MAX);
@@ -79,16 +76,17 @@ namespace FutekUSB220
                 logBlockQueue.Dequeue();
             }
             logBlockQueue.Enqueue(oldBlock);
+
             await FileIO.AppendLinesAsync(logFile, oldBlock);
         }
 
-        private void AddLogLine(string logLine, LoggingLevel level)
+        private async Task AddLogLine(string logLine, LoggingLevel level)
         {
             Debug.WriteLine(logLine);
             logBlock.Add(logLine);
             if (logBlock.Count >= LOG_BLOCK_MAX)
             {
-                WriteLogBlock();
+                await WriteLogBlock();
             }
 
             if (level >= recentLevel)
@@ -101,7 +99,7 @@ namespace FutekUSB220
             }
         }
 
-        public void Log(string message, LoggingLevel level = LoggingLevel.Verbose)
+        public async void Log(string message, LoggingLevel level = LoggingLevel.Verbose)
         {
             StringReader sr = null;
             string msgLine = null;
@@ -118,11 +116,11 @@ namespace FutekUSB220
                 DateTime.UtcNow.ToString("yyyyMMddHHmmssff"),
                 (int)level,
                 msgLine);
-            AddLogLine(logLine, level);
+            await AddLogLine(logLine, level);
             while (null != (msgLine = sr.ReadLine()))
             {
                 logLine = String.Format($"                   {msgLine}");
-                AddLogLine(logLine, level);
+                await AddLogLine(logLine, level);
             }
         }
     }
