@@ -14,6 +14,7 @@ using Windows.Foundation.Collections;
 using Windows.Foundation.Diagnostics;
 using Windows.Storage;
 using Windows.Storage.Streams;
+using Windows.System.Display;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -35,6 +36,7 @@ namespace FutekUSB220
         private const string FutekUSB220DeviceId = "FutekUSB220";
 
         private DispatcherTimer activityUpdateTimer;
+        private DisplayRequest _displayRequest;
         private Logger logger = null;
 
         private SerialDevice _serialDevice = null;
@@ -54,6 +56,11 @@ namespace FutekUSB220
             {
                 logger = ((App)Application.Current).logger;
             }
+
+            // While we are running, don't blank out the screen or activate screen saver.
+            // https://blogs.windows.com/windowsdeveloper/2016/05/24/how-to-prevent-screen-locks-in-your-uwp-apps/
+            _displayRequest = new DisplayRequest();
+            _displayRequest.RequestActive();
 
             Application.Current.Suspending += Application_Suspending;
             Application.Current.Resuming += Application_Resuming;
