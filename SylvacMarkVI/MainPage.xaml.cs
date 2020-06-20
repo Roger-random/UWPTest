@@ -579,7 +579,7 @@ namespace SylvacMarkVI
                 catch (Exception err)
                 {
                     Log($"Bluetooth LE connection lost, trying to reconnect. {err}", LoggingLevel.Error);
-                    await Dispatcher.RunAsync(CoreDispatcherPriority.Low, DeviceConnect);
+                    await DeviceDisconnect(true);
                 }
             }
         }
