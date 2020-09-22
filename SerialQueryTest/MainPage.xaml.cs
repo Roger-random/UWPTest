@@ -76,11 +76,21 @@ namespace SerialQueryTest
 
         private async void EnumerateSerialDevices()
         {
+            ContinuousData cdDevice = new ContinuousData(_logger);
+
             DeviceInformationCollection deviceinfos = await DeviceInformation.FindAllAsync(SerialDevice.GetDeviceSelector());
 
             foreach (DeviceInformation deviceinfo in deviceinfos)
             {
                 Log($"Serial device ID={deviceinfo.Id}");
+                if (await cdDevice.IsDeviceOnPort(deviceinfo.Id))
+                {
+                    _logger.Log("cdDevice TRUE");
+                }
+                else
+                {
+                    _logger.Log("cdDevice FALSE");
+                }
             }
         }
     }
