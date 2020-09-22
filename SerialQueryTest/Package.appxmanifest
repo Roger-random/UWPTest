@@ -7,7 +7,7 @@
   IgnorableNamespaces="uap mp">
 
   <Identity
-    Name="60a9d667-7a0a-41be-b260-7467b6fd127b"
+    Name="com.regorlas.serialquerytest"
     Publisher="CN=roger"
     Version="1.0.0.0" />
 
