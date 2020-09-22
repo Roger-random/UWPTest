@@ -70,10 +70,12 @@ namespace SylvacMarkVI
 
         public async Task WriteLogBlock()
         {
-            Log("Writing out log block", LoggingLevel.Information);
-
             List<String> oldBlock = logBlock;
             logBlock = new List<String>(LOG_BLOCK_MAX);
+
+            // Log AFTER switching out logBlock to prevent infinite loop.
+            Log("Writing out log block", LoggingLevel.Information);
+
             if (logBlockQueue.Count >= LOG_BLOCK_QUEUE_SIZE)
             {
                 // Remove the oldest block of logs
