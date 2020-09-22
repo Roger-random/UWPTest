@@ -8,7 +8,12 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid>
-
-    </Grid>
+    <StackPanel Orientation="Vertical">
+        <TextBlock x:Name="tbLogging">
+            Awaiting update...
+        </TextBlock>
+        <TextBlock x:Name="tbClock">
+            Awaiting update...
+        </TextBlock>
+    </StackPanel>
 </Page>

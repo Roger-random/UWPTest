@@ -29,7 +29,7 @@ namespace SerialQueryTest
             logBlockQueue = new Queue<List<String>>(LOG_BLOCK_QUEUE_SIZE);
 
             recentLevel = LoggingLevel.Information;
-            recentCount = 10;
+            recentCount = 50;
             recentLogs = new Queue<String>(recentCount);
         }
 

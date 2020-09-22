@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Storage.Streams;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -22,9 +23,28 @@ namespace SerialQueryTest
     /// </summary>
     public sealed partial class MainPage : Page
     {
+        private DispatcherTimer activityUpdateTimer;
+        private Logger logger = null;
+
         public MainPage()
         {
             this.InitializeComponent();
+
+            activityUpdateTimer = new DispatcherTimer();
+            activityUpdateTimer.Tick += ActivityUpdateTimer_Tick;
+            activityUpdateTimer.Interval = new TimeSpan(0, 0, 0, 0, 200 /* milliseconds */);
+            activityUpdateTimer.Start();
+
+            if (Application.Current as App != null)
+            {
+                logger = ((App)Application.Current).logger;
+            }
+        }
+
+        private void ActivityUpdateTimer_Tick(object sender, object e)
+        {
+            tbLogging.Text = logger.Recent;
+            tbClock.Text = DateTime.UtcNow.ToString("yyyyMMddHHmmssff");
         }
     }
 }
