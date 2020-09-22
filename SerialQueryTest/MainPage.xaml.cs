@@ -23,27 +23,32 @@ namespace SerialQueryTest
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private DispatcherTimer activityUpdateTimer;
-        private Logger logger = null;
+        private DispatcherTimer _activityUpdateTimer;
+        private Logger _logger = null;
 
         public MainPage()
         {
             this.InitializeComponent();
 
-            activityUpdateTimer = new DispatcherTimer();
-            activityUpdateTimer.Tick += ActivityUpdateTimer_Tick;
-            activityUpdateTimer.Interval = new TimeSpan(0, 0, 0, 0, 200 /* milliseconds */);
-            activityUpdateTimer.Start();
+            ActivityUpdateTimer_Start();
 
             if (Application.Current as App != null)
             {
-                logger = ((App)Application.Current).logger;
+                _logger = ((App)Application.Current).logger;
             }
+        }
+
+        private void ActivityUpdateTimer_Start()
+        {
+            _activityUpdateTimer = new DispatcherTimer();
+            _activityUpdateTimer.Tick += ActivityUpdateTimer_Tick;
+            _activityUpdateTimer.Interval = new TimeSpan(0, 0, 0, 0, 200 /* milliseconds */);
+            _activityUpdateTimer.Start();
         }
 
         private void ActivityUpdateTimer_Tick(object sender, object e)
         {
-            tbLogging.Text = logger.Recent;
+            tbLogging.Text = _logger.Recent;
             tbClock.Text = DateTime.UtcNow.ToString("yyyyMMddHHmmssff");
         }
     }
