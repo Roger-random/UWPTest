@@ -1,11 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using Windows.Devices.Enumeration;
+using Windows.Devices.SerialCommunication;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Foundation.Diagnostics;
 using Windows.Storage.Streams;
+using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -36,6 +41,8 @@ namespace SerialQueryTest
             {
                 _logger = ((App)Application.Current).logger;
             }
+
+            _ = Dispatcher.RunAsync(CoreDispatcherPriority.Low, EnumerateSerialDevices);
         }
 
         private void ActivityUpdateTimer_Start()
@@ -50,6 +57,31 @@ namespace SerialQueryTest
         {
             tbLogging.Text = _logger.Recent;
             tbClock.Text = DateTime.UtcNow.ToString("yyyyMMddHHmmssff");
+        }
+        private async void Log(string t, LoggingLevel level = LoggingLevel.Verbose)
+        {
+            if (_logger != null)
+            {
+                _logger.Log(t, level);
+                if (level > LoggingLevel.Information)
+                {
+                    await _logger.WriteLogBlock();
+                }
+            }
+            else
+            {
+                Debug.WriteLine("WARNING: Logger not available, log message lost.");
+            }
+        }
+
+        private async void EnumerateSerialDevices()
+        {
+            DeviceInformationCollection deviceinfos = await DeviceInformation.FindAllAsync(SerialDevice.GetDeviceSelector());
+
+            foreach (DeviceInformation deviceinfo in deviceinfos)
+            {
+                Log($"Serial device ID={deviceinfo.Id}");
+            }
         }
     }
 }
