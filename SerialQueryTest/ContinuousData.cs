@@ -32,59 +32,85 @@ namespace SerialQueryTest
             _logger = logger;
         }
 
+        // Connect to serial device on given deviceId and see if it acts like the target device
         public async Task<bool> IsDeviceOnPort(string deviceId)
         {
-            double sampleData = 0.0;
+            bool success = false;
 
             _logger.Log($"Checking if this is a {LABEL}: {deviceId}", LoggingLevel.Information);
             try
             {
-                _serialDevice = await SerialDevice.FromIdAsync(deviceId);
-                if (_serialDevice != null)
-                {
-                    _serialDevice.BaudRate = 9600;
-                    _serialDevice.DataBits = 8;
-                    _serialDevice.Parity = SerialParity.None;
-                    _serialDevice.StopBits = SerialStopBitCount.One;
-                    _serialDevice.ReadTimeout = new TimeSpan(0, 0, 0, 0, TASK_CANCEL_TIMEOUT /* milliseconds */);
-
-                    _dataReader = new DataReader(_serialDevice.InputStream);
-                    _dataReader.UnicodeEncoding = UnicodeEncoding.Utf8;
-
-                    try
-                    {
-                        sampleData = await nextData(2000); // 2 second timeout for the first read.
-                        _logger.Log($"Successfully retrieved {sampleData} from {LABEL} on {deviceId}");
-
-                        return true;
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        _logger.Log($"Timed out so inferring {LABEL} is not at {deviceId}");
-                    }
-                    catch (IOException)
-                    {
-                        _logger.Log($"Encountered error indicating {LABEL} is not at {deviceId}");
-                    }
-                }
-                else
-                {
-                    // This is a high priority error because we expect be able to open the port to take look.
-                    _logger.Log($"Unable to get SerialDevice for {LABEL} on {deviceId}", LoggingLevel.Error);
-                }
+                success = await Connect(deviceId);
             }
             catch (Exception e)
             {
-                // Since this is not during actual functionality, treat as informational rather than error.
+                // Since this is not during actual use, treat as informational rather than error.
                 _logger.Log($"Exception thrown while checking if {LABEL} is on {deviceId}", LoggingLevel.Information);
                 _logger.Log(e.ToString(), LoggingLevel.Information);
             }
             finally
             {
-                _dataReader?.Dispose();
-                _serialDevice?.Dispose();
+                Disconnect();
             }
-            return false;
+            return success;
+        }
+
+        // Connect to serial device on given deviceId
+        public async Task<bool> Connect(string deviceId)
+        {
+            double sampleData = 0.0;
+            bool connected = false;
+
+            _serialDevice = await SerialDevice.FromIdAsync(deviceId);
+            if (_serialDevice != null)
+            {
+                _serialDevice.BaudRate = 9600;
+                _serialDevice.DataBits = 8;
+                _serialDevice.Parity = SerialParity.None;
+                _serialDevice.StopBits = SerialStopBitCount.One;
+                _serialDevice.ReadTimeout = new TimeSpan(0, 0, 0, 0, TASK_CANCEL_TIMEOUT /* milliseconds */);
+
+                _dataReader = new DataReader(_serialDevice.InputStream);
+                _dataReader.UnicodeEncoding = UnicodeEncoding.Utf8;
+
+                try
+                {
+                    sampleData = await nextData(2000); // 2 second timeout for the first read.
+                    _logger.Log($"Successfully retrieved {sampleData} from {LABEL} on {deviceId}");
+
+                    connected = true;
+                }
+                catch (TaskCanceledException)
+                {
+                    _logger.Log($"Timed out, inferring {LABEL} is not at {deviceId}");
+                }
+                catch (IOException)
+                {
+                    _logger.Log($"Encountered IO error, indicating {LABEL} is not at {deviceId}");
+                }
+            }
+            else
+            {
+                // The given device ID cannot be opened.
+                _logger.Log("Unable to open {deviceId}", LoggingLevel.Error);
+            }
+
+            if (!connected)
+            {
+                // Connection failed, clean everything up.
+                Disconnect();
+            }
+
+            return connected;
+        }
+
+        // Dispose and clear all handles to serial device
+        public void Disconnect()
+        {
+            _dataReader?.Dispose();
+            _dataReader = null;
+            _serialDevice?.Dispose();
+            _serialDevice = null;
         }
 
         private bool validFormat(string inputData)
