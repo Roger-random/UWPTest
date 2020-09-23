@@ -17,10 +17,18 @@ namespace SerialQueryTest
     class CommandResponse
     {
         private const string LABEL = "command+response device";
+
         private const int READ_TIMEOUT = 100; // milliseconds
         private const int WRITE_TIMEOUT = 100; // milliseconds
-        private const int TASK_CANCEL_TIMEOUT = 500; // Should be longer than READ or WRITE timeout.
-        // Expected format: "+00.00000\r"
+
+        // Should be longer than READ or WRITE timeout.
+        private const int TASK_CANCEL_TIMEOUT = 500;
+
+        // How long to wait between querying position. If this is too short, it
+        // appears to starve some shared resources and will affect other serial ports.
+        private const int LOOP_DELAY = 100;
+
+        // Expected data format: "+00.00000\r"
         private const int EXPECTED_LENGTH = 10;
         private const string DELIMITER = "\r";
 
@@ -44,7 +52,6 @@ namespace SerialQueryTest
             {
                 success = await Connect(deviceId);
 
-                /* Quick test loop
                 if (success)
                 {
                     for (int i = 0; i < 12; i++)
@@ -52,10 +59,9 @@ namespace SerialQueryTest
                         await sendQuery();
                         double newVal = await nextData();
                         _logger.Log($"{LABEL} returned {newVal}");
-                        await Task.Delay(100);
+                        await Task.Delay(LOOP_DELAY);
                     }
                 }
-                */
             }
             catch (Exception e)
             {
