@@ -51,7 +51,7 @@ namespace SerialQueryTest
             Application.Current.Resuming += Application_Resuming;
 
             _cdDevice = new ContinuousData(Dispatcher, _logger);
-            _crDevice = new CommandResponse(_logger);
+            _crDevice = new CommandResponse(Dispatcher, _logger);
 
             _ = Dispatcher.RunAsync(CoreDispatcherPriority.Low, EnumerateSerialDevices);
         }
@@ -156,13 +156,19 @@ namespace SerialQueryTest
 
                 if (success)
                 {
-                    tbIndicator.Text = $"Command response device online! Now what? {_cdDeviceId}";
+                    tbIndicator.Text = "Command response device online!";
+                    _crDevice.ResponseDataEvent += _crDevice_ResponseDataEvent;
                 }
                 else
                 {
                     _logger.Log($"Failed to connect to command response device {_crDeviceId}");
                 }
             }
+        }
+
+        private void _crDevice_ResponseDataEvent(object sender, ResponseDataEventArgs args)
+        {
+            tbIndicator.Text = $"Indicator: {args.Value}";
         }
 
         private void _cdDevice_ContinousDataEvent(object sender, ContinuousDataEventArgs args)

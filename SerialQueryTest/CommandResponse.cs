@@ -9,10 +9,21 @@ using System.Threading.Tasks;
 using Windows.Devices.SerialCommunication;
 using Windows.Foundation.Diagnostics;
 using Windows.Storage.Streams;
+using Windows.UI.Core;
 using UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding;
 
 namespace SerialQueryTest
 {
+    class ResponseDataEventArgs : EventArgs
+    {
+        public ResponseDataEventArgs(double value)
+        {
+            Value = value;
+        }
+
+        public double Value { get; }
+    }
+
     // Test class representing serial devices that continuously emit data
     class CommandResponse
     {
@@ -36,9 +47,14 @@ namespace SerialQueryTest
         private Logger _logger = null;
         private DataReader _dataReader = null;
         private DataWriter _dataWriter = null;
+        private CoreDispatcher _dispatcher = null;
 
-        public CommandResponse(Logger logger)
+        public delegate void ResponseDataEventHandler(object sender, ResponseDataEventArgs args);
+        public event ResponseDataEventHandler ResponseDataEvent;
+
+        public CommandResponse(CoreDispatcher dispatcher, Logger logger)
         {
+            _dispatcher = dispatcher;
             _logger = logger;
         }
 
@@ -119,6 +135,9 @@ namespace SerialQueryTest
                         sampleData = await nextData();
                         _logger.Log($"Saw response {sampleData} to command, {LABEL} is on {deviceId}");
                         connected = true;
+
+                        // Kick off the read loop
+                        _ = _dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadNextData);
                     }
                     catch (TaskCanceledException)
                     {
@@ -151,6 +170,44 @@ namespace SerialQueryTest
             _dataWriter = null;
             _serialDevice?.Dispose();
             _serialDevice = null;
+        }
+
+        private async void ReadNextData()
+        {
+            if (null == _dataReader)
+            {
+                // Serial device disconnected while we were waiting in the dispatcher queue.
+                return;
+            }
+
+            try
+            {
+                // Send the query...
+                await sendQuery();
+
+                // .. read the response and pass it on to subscribers
+                double newValue = await nextData();
+                OnResponseDataEvent(new ResponseDataEventArgs(newValue));
+
+                // Take a short break before continuing the read loop
+                await Task.Delay(LOOP_DELAY);
+                _ = _dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadNextData);
+            }
+            catch (Exception e)
+            {
+                _logger.Log($"{LABEL} ReadNextData failed, read loop halted.", LoggingLevel.Error);
+                _logger.Log(e.ToString(), LoggingLevel.Error);
+            }
+        }
+
+        protected virtual void OnResponseDataEvent(ResponseDataEventArgs e)
+        {
+            ResponseDataEventHandler raiseEvent = ResponseDataEvent;
+
+            if (raiseEvent != null)
+            {
+                raiseEvent(this, e);
+            }
         }
 
         private Task sendQuery(int cancelTimeout = TASK_CANCEL_TIMEOUT)
