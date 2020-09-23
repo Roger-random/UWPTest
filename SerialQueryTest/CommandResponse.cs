@@ -51,17 +51,6 @@ namespace SerialQueryTest
             try
             {
                 success = await Connect(deviceId);
-
-                if (success)
-                {
-                    for (int i = 0; i < 12; i++)
-                    {
-                        await sendQuery();
-                        double newVal = await nextData();
-                        _logger.Log($"{LABEL} returned {newVal}");
-                        await Task.Delay(LOOP_DELAY);
-                    }
-                }
             }
             catch (Exception e)
             {
@@ -155,6 +144,7 @@ namespace SerialQueryTest
         // Dispose and clear all handles to serial device
         public void Disconnect()
         {
+            _logger.Log($"Disconnecting {LABEL}");
             _dataReader?.Dispose();
             _dataReader = null;
             _dataWriter?.Dispose();

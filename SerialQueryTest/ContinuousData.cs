@@ -107,6 +107,7 @@ namespace SerialQueryTest
         // Dispose and clear all handles to serial device
         public void Disconnect()
         {
+            _logger.Log($"Disconnecting {LABEL}");
             _dataReader?.Dispose();
             _dataReader = null;
             _serialDevice?.Dispose();

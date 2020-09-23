@@ -31,6 +31,11 @@ namespace SerialQueryTest
         private DispatcherTimer _activityUpdateTimer;
         private Logger _logger = null;
 
+        private ContinuousData _cdDevice = null;
+        private string _cdDeviceId = null;
+        private CommandResponse _crDevice = null;
+        private string _crDeviceId = null;
+
         public MainPage()
         {
             this.InitializeComponent();
@@ -42,7 +47,24 @@ namespace SerialQueryTest
                 _logger = ((App)Application.Current).logger;
             }
 
+            Application.Current.Suspending += Application_Suspending;
+            Application.Current.Resuming += Application_Resuming;
+
+            _cdDevice = new ContinuousData(_logger);
+            _crDevice = new CommandResponse(_logger);
+
             _ = Dispatcher.RunAsync(CoreDispatcherPriority.Low, EnumerateSerialDevices);
+        }
+
+        private void Application_Resuming(object sender, object e)
+        {
+            _ = Dispatcher.RunAsync(CoreDispatcherPriority.Low, EnumerateSerialDevices);
+        }
+
+        private void Application_Suspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e)
+        {
+            _cdDevice.Disconnect();
+            _crDevice.Disconnect();
         }
 
         private void ActivityUpdateTimer_Start()
@@ -76,8 +98,8 @@ namespace SerialQueryTest
 
         private async void EnumerateSerialDevices()
         {
-            ContinuousData cdDevice = new ContinuousData(_logger);
-            CommandResponse crDevice = new CommandResponse(_logger);
+            _cdDeviceId = null;
+            _crDeviceId = null;
 
             DeviceInformationCollection deviceinfos = await DeviceInformation.FindAllAsync(SerialDevice.GetDeviceSelector());
 
@@ -85,8 +107,9 @@ namespace SerialQueryTest
             {
                 Log($"Serial device ID={deviceinfo.Id}");
 
-                if (await cdDevice.IsDeviceOnPort(deviceinfo.Id))
+                if (await _cdDevice.IsDeviceOnPort(deviceinfo.Id))
                 {
+                    _cdDeviceId = deviceinfo.Id;
                     _logger.Log("cdDevice TRUE", LoggingLevel.Information);
                 }
                 else
@@ -94,13 +117,49 @@ namespace SerialQueryTest
                     _logger.Log("cdDevice FALSE", LoggingLevel.Information);
                 }
 
-                if (await crDevice.IsDeviceOnPort(deviceinfo.Id))
+                if (await _crDevice.IsDeviceOnPort(deviceinfo.Id))
                 {
+                    _crDeviceId = deviceinfo.Id;
                     _logger.Log("crDevice TRUE", LoggingLevel.Information);
                 }
                 else
                 {
                     _logger.Log("crDevice FALSE", LoggingLevel.Information);
+                }
+            }
+
+            _ = Dispatcher.RunAsync(CoreDispatcherPriority.Low, ConnectSerialDevices);
+        }
+
+        private async void ConnectSerialDevices()
+        {
+            bool success;
+
+            if (null != _cdDeviceId)
+            {
+                success = await _cdDevice.Connect(_cdDeviceId);
+
+                if (success)
+                {
+                    tbLoad.Text = $"Continuous data device online! Now what? {_cdDeviceId}";
+                }
+                else
+                {
+                    _logger.Log($"Failed to connect to continuous data device {_cdDeviceId}");
+                }
+            }
+
+            if (null != _crDeviceId)
+            {
+                success = await _crDevice.Connect(_crDeviceId);
+
+                if (success)
+                {
+                    tbIndicator.Text = $"Command response device online! Now what? {_cdDeviceId}";
+                }
+                else
+                {
+                    _logger.Log($"Failed to connect to command response device {_crDeviceId}");
                 }
             }
         }

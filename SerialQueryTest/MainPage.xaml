@@ -9,11 +9,9 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <StackPanel Orientation="Vertical">
-        <TextBlock x:Name="tbLogging">
-            Awaiting update...
-        </TextBlock>
-        <TextBlock x:Name="tbClock">
-            Awaiting update...
-        </TextBlock>
+        <TextBlock x:Name="tbLoad"    Text="Waiting..." />
+        <TextBlock x:Name="tbIndicator" Text="Waiting..."/>
+        <TextBlock x:Name="tbLogging" Text="Waiting..." />
+        <TextBlock x:Name="tbClock"   Text="Waiting..." />
     </StackPanel>
 </Page>
