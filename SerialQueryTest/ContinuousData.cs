@@ -28,11 +28,11 @@ namespace SerialQueryTest
     class ContinuousData
     {
         private const string LABEL = "continuous data device";
-        private const int TASK_CANCEL_TIMEOUT = 150; // milliseconds
+        private const int TASK_CANCEL_TIMEOUT = 250; // milliseconds
 
         // How long to wait between querying position. If this is too short, it
         // appears to starve some shared resources and will affect other serial ports.
-        private const int LOOP_DELAY = 100;
+        private const int LOOP_DELAY = 50;
 
         // Expected format: "+0.00000     lbs\r\n"
         private const int EXPECTED_LENGTH = 18;
