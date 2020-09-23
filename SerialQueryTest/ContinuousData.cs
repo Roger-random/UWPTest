@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Devices.SerialCommunication;
@@ -47,6 +48,17 @@ namespace SerialQueryTest
 
                     try
                     {
+                        /* Test resync with offset data
+                        try
+                        {
+                            CancellationTokenSource cancelSrc = new CancellationTokenSource(2000); // Cancel after 2000 milliseconds
+                            await _dataReader.LoadAsync(1).AsTask<uint>(cancelSrc.Token);
+                            _ = _dataReader.ReadString(1);
+                        }
+                        catch(TaskCanceledException)
+                        {
+                        }
+                        */ 
                         sampleData = await nextData();
                         if (sampleData == null)
                         {
@@ -82,6 +94,10 @@ namespace SerialQueryTest
 
         private async Task<string> nextData()
         {
+            string inString = null;
+            int deliminiterIndex = 0;
+            int syncRemainder = 0;
+
             if (_serialDevice == null)
             {
                 InvalidOperation("ReadSensorReport called before connecting serial device.");
@@ -92,13 +108,91 @@ namespace SerialQueryTest
             }
 
             CancellationTokenSource cancelSrc = new CancellationTokenSource(2000); // Cancel after 2000 milliseconds
-            uint loadedSize = await _dataReader.LoadAsync(64).AsTask<uint>(cancelSrc.Token);
-            if (loadedSize > 18)
+            uint loadedSize = await _dataReader.LoadAsync(18).AsTask<uint>(cancelSrc.Token);
+            if (loadedSize > 0)
             {
-                return _dataReader.ReadString(32);
+                try
+                {
+                    inString = _dataReader.ReadString(loadedSize);
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    // This is thrown when the data can't be parsed as UTF8, interpreting to mean the incoming
+                    // data was not set at the baud rate of the expected device.
+                    _logger.Log($"Non UTF-8 data encountered. This is only expected when probing ports for {LABEL}");
+                    return null;
+                }
+
+                deliminiterIndex = inString.IndexOf("\r\n");
+                if (deliminiterIndex != 16)
+                {
+                    // Oh no, the end deliminiter is not where we expected it to be. Can we recover?
+                    if (inString.Length < 18)
+                    {
+                        // Sometimes we just don't get all 18 we asked for and just need to ask for the rest.
+                        syncRemainder = 18 - inString.Length;
+                    }
+                    else if (deliminiterIndex == -1)
+                    {
+                        // If we have the full length yet there's no delimiter at all in the string we retrieved,
+                        // then the problem is worse than just getting offset data.
+                        InvalidOperation($"No deliminter in data retrieved from {LABEL}");
+                    }
+                    else
+                    {
+                        // Delimiter is somewhere in the middle instead of the end. Discard the end of the
+                        // truncated prior segment, keep the start of the latter segment, and try to read data
+                        // to complete the latter segment.
+                        inString = inString.Substring(deliminiterIndex + 2);
+                        syncRemainder = 18 - inString.Length;
+                    }
+
+                    if (syncRemainder < 0)
+                    {
+                        InvalidOperation($"Expected inString.Length to be 18 or less, but is {inString.Length}");
+                    }
+
+                    cancelSrc = new CancellationTokenSource(1000); // Cancel after 1 second
+                    loadedSize = await _dataReader.LoadAsync((uint)syncRemainder).AsTask<uint>(cancelSrc.Token);
+
+                    if (loadedSize != syncRemainder)
+                    {
+                        InvalidOperation($"Failed to resync, want {syncRemainder} but got {loadedSize}");
+                    }
+                    inString += _dataReader.ReadString(loadedSize);
+
+                    if (16 != inString.IndexOf("\r\n"))
+                    {
+                        InvalidOperation($"Failed to resync, only got {inString.Length} long string: {inString}");
+                    }
+                }
+
+                // Match input string against expected pattern using regular expression
+                // C# Regular Expression syntax https://docs.microsoft.com/en-us/dotnet/standard/base-types/regular-expression-language-quick-reference
+                //
+                // ^ = must start with this
+                //   [+-] = must have one of either '+' or '-'
+                //     ^[+-] = must start with either '+' or '-'
+                // \d = numerical digit
+                //   + = one or more matches
+                //     \d+ = at least one digit
+                // . = one and only one decimal point
+                // (repeat "at least one digit" above)
+                // \s = space & similar spacing characters
+                //   + = one or more matches
+                //     \s+ = at least one spacing character
+                // lbs\r\n = literal string "lbs" followed by carriage return then line feed.
+                //   $ = end of the string
+                if (!Regex.IsMatch(inString, "^[+-]\\d+.\\d+\\s+lbs\r\n$"))
+                {
+                    InvalidOperation($"Improper format string {inString}");
+                }
+                //value = Double.Parse(reportLine.Substring(0, 13));
+                return inString;
             }
             else
             {
+                _logger.Log("Unexpected: LoadAsync() returned with zero bytes.", LoggingLevel.Critical);
                 return null;
             }
         }
