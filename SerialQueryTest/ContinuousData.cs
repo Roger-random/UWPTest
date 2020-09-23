@@ -56,11 +56,6 @@ namespace SerialQueryTest
                         sampleData = await nextData(2000); // 2 second timeout for the first read.
                         _logger.Log($"Successfully retrieved {sampleData} from {LABEL} on {deviceId}");
 
-                        // Next five should be fast.
-                        for (int i = 0; i < 5; i++)
-                        {
-                            _logger.Log($"Follow-up data {await nextData()}");
-                        }
                         return true;
                     }
                     catch (TaskCanceledException)
