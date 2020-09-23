@@ -13,21 +13,23 @@ using UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding;
 namespace SerialQueryTest
 {
     // Test class representing serial devices that continuously emit data
-    class ContinuousData
+    class CommandResponse
     {
-        private const string LABEL = "continuous data device";
+        private const string LABEL = "command+response device";
 
         private SerialDevice _serialDevice = null;
         private Logger _logger = null;
         private DataReader _dataReader = null;
+        private DataWriter _dataWriter = null;
 
-        public ContinuousData(Logger logger)
+        public CommandResponse(Logger logger)
         {
             _logger = logger;
         }
 
         public async Task<bool> IsDeviceOnPort(string deviceId)
         {
+            bool noDataStreaming = false;
             String sampleData = null;
 
             _logger.Log($"Checking if this is a {LABEL}: {deviceId}", LoggingLevel.Information);
@@ -36,11 +38,15 @@ namespace SerialQueryTest
                 _serialDevice = await SerialDevice.FromIdAsync(deviceId);
                 if (_serialDevice != null)
                 {
-                    _serialDevice.BaudRate = 9600;
-                    _serialDevice.DataBits = 8;
-                    _serialDevice.Parity = SerialParity.None;
-                    _serialDevice.StopBits = SerialStopBitCount.One;
+                    _serialDevice.BaudRate = 4800;
+                    _serialDevice.DataBits = 7;
+                    _serialDevice.Parity = SerialParity.Even;
+                    _serialDevice.StopBits = SerialStopBitCount.Two;
                     _serialDevice.ReadTimeout = new TimeSpan(0, 0, 1);
+                    _serialDevice.WriteTimeout = new TimeSpan(0, 0, 1);
+
+                    _dataWriter = new DataWriter(_serialDevice.OutputStream);
+                    _dataWriter.UnicodeEncoding = UnicodeEncoding.Utf8;
 
                     _dataReader = new DataReader(_serialDevice.InputStream);
                     _dataReader.UnicodeEncoding = UnicodeEncoding.Utf8;
@@ -48,21 +54,44 @@ namespace SerialQueryTest
                     try
                     {
                         sampleData = await nextData();
-                        if (sampleData == null)
+                    }
+                    catch(TaskCanceledException)
+                    {
+                        // We timed out trying to read data, which is expected and desirable because this
+                        // type of device does not send data until command is sent.
+                        noDataStreaming = true;
+                    }
+                    
+
+                    if (noDataStreaming)
+                    {
+                        // We verified this device is not sending data without prompt. So now we send a
+                        // prompt to see if it answers.
+                        _dataWriter.WriteString("?");
+                    await _dataWriter.StoreAsync();
+
+                        try
                         {
-                            _logger.Log($"No string so inferring {LABEL} is not at {deviceId}");
-                            return false;
+                            sampleData = await nextData();
+                            if (sampleData == null)
+                            {
+                                _logger.Log($"Null data response to command, {LABEL} is not on {deviceId}");
+                                return false;
+                            }
+                            else
+                            {
+                                _logger.Log($"Saw response to command, {LABEL} is on {deviceId}");
+                                return true;
+                            }
                         }
-                        else
+                        catch (TaskCanceledException)
                         {
-                            _logger.Log($"Look slike {LABEL} is at {deviceId}");
-                            return true;
+                            _logger.Log($"TaskCanceledException response to command, {LABEL} is not on {deviceId}");
                         }
                     }
-                    catch (TaskCanceledException)
+                    else
                     {
-                        _logger.Log($"Timed out so inferring {LABEL} is not at {deviceId}");
-                        return false;
+                        _logger.Log($"Saw data before issuing command, {LABEL} is not on {deviceId}");
                     }
                 }
             }
@@ -75,6 +104,7 @@ namespace SerialQueryTest
             finally
             {
                 _dataReader?.Dispose();
+                _dataWriter?.Dispose();
                 _serialDevice?.Dispose();
             }
             return false;
@@ -93,9 +123,9 @@ namespace SerialQueryTest
 
             CancellationTokenSource cancelSrc = new CancellationTokenSource(2000); // Cancel after 2000 milliseconds
             uint loadedSize = await _dataReader.LoadAsync(64).AsTask<uint>(cancelSrc.Token);
-            if (loadedSize > 18)
+            if (loadedSize >= 10)
             {
-                return _dataReader.ReadString(32);
+                return _dataReader.ReadString(loadedSize);
             }
             else
             {
