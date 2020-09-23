@@ -9,15 +9,31 @@ using System.Threading.Tasks;
 using Windows.Devices.SerialCommunication;
 using Windows.Foundation.Diagnostics;
 using Windows.Storage.Streams;
+using Windows.UI.Core;
 using UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding;
 
 namespace SerialQueryTest
 {
+    class ContinuousDataEventArgs : EventArgs
+    {
+        public ContinuousDataEventArgs(double value)
+        {
+            Value = value;
+        }
+
+        public double Value { get; }
+    }
+
     // Test class representing serial devices that continuously emit data
     class ContinuousData
     {
         private const string LABEL = "continuous data device";
         private const int TASK_CANCEL_TIMEOUT = 150; // milliseconds
+
+        // How long to wait between querying position. If this is too short, it
+        // appears to starve some shared resources and will affect other serial ports.
+        private const int LOOP_DELAY = 100;
+
         // Expected format: "+0.00000     lbs\r\n"
         private const int EXPECTED_LENGTH = 18;
         private const int DATA_LENGTH = 13; // When parsing as double, stop just before this character index.
@@ -26,9 +42,14 @@ namespace SerialQueryTest
         private SerialDevice _serialDevice = null;
         private Logger _logger = null;
         private DataReader _dataReader = null;
+        private CoreDispatcher _dispatcher = null;
 
-        public ContinuousData(Logger logger)
+        public delegate void ContinuousDataEventHandler(object sender, ContinuousDataEventArgs args);
+        public event ContinuousDataEventHandler ContinousDataEvent;
+
+        public ContinuousData(CoreDispatcher dispatcher, Logger logger)
         {
+            _dispatcher = dispatcher;
             _logger = logger;
         }
 
@@ -79,6 +100,9 @@ namespace SerialQueryTest
                     _logger.Log($"Successfully retrieved {sampleData} from {LABEL} on {deviceId}");
 
                     connected = true;
+
+                    // Kick off the read loop
+                    _ = _dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadNextData);
                 }
                 catch (TaskCanceledException)
                 {
@@ -112,6 +136,41 @@ namespace SerialQueryTest
             _dataReader = null;
             _serialDevice?.Dispose();
             _serialDevice = null;
+        }
+
+        private async void ReadNextData()
+        {
+            if (null == _dataReader)
+            {
+                // Serial device disconnected while we were waiting in the dispatcher queue.
+                return;
+            }
+
+            try
+            {
+                // Read the new value and send it to subscribers
+                double newValue = await nextData();
+                OnContinuousDataEvent(new ContinuousDataEventArgs(newValue));
+
+                // Take a short break before continuing the read loop
+                await Task.Delay(LOOP_DELAY);
+                _ = _dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadNextData);
+            }
+            catch (Exception e)
+            {
+                _logger.Log($"{LABEL} ReadNextData failed, read loop halted.", LoggingLevel.Error);
+                _logger.Log(e.ToString(), LoggingLevel.Error);
+            }
+        }
+
+        protected virtual void OnContinuousDataEvent(ContinuousDataEventArgs e)
+        {
+            ContinuousDataEventHandler raiseEvent = ContinousDataEvent;
+
+            if (raiseEvent != null)
+            {
+                raiseEvent(this, e);
+            }
         }
 
         private bool validFormat(string inputData)
