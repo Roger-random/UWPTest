@@ -43,11 +43,16 @@ namespace SerialQueryTest
         private const int EXPECTED_LENGTH = 10;
         private const string DELIMITER = "\r";
 
+        // How long to wait before retrying connection, in milliseconds
+        private const int RETRY_DELAY = 5000;
+
         private SerialDevice _serialDevice = null;
+        private string _serialDeviceId = null;
         private Logger _logger = null;
         private DataReader _dataReader = null;
         private DataWriter _dataWriter = null;
         private CoreDispatcher _dispatcher = null;
+        private bool _shouldReconnect = false;
 
         public delegate void ResponseDataEventHandler(object sender, ResponseDataEventArgs args);
         public event ResponseDataEventHandler ResponseDataEvent;
@@ -91,6 +96,8 @@ namespace SerialQueryTest
             _serialDevice = await SerialDevice.FromIdAsync(deviceId);
             if (_serialDevice != null)
             {
+                _serialDeviceId = deviceId;
+
                 _serialDevice.BaudRate = 4800;
                 _serialDevice.DataBits = 7;
                 _serialDevice.Parity = SerialParity.Even;
@@ -135,6 +142,7 @@ namespace SerialQueryTest
                         sampleData = await nextData();
                         _logger.Log($"Saw response {sampleData} to command, {LABEL} is on {deviceId}");
                         connected = true;
+                        _shouldReconnect = true;
 
                         // Kick off the read loop
                         _ = _dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadNextData);
@@ -191,12 +199,42 @@ namespace SerialQueryTest
 
                 // Take a short break before continuing the read loop
                 await Task.Delay(LOOP_DELAY);
-                _ = _dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadNextData);
+                _ = _dispatcher.RunAsync(CoreDispatcherPriority.Normal, ReadNextData);
             }
             catch (Exception e)
             {
                 _logger.Log($"{LABEL} ReadNextData failed, read loop halted.", LoggingLevel.Error);
                 _logger.Log(e.ToString(), LoggingLevel.Error);
+                if (_shouldReconnect)
+                {
+                    _ = _dispatcher.RunAsync(CoreDispatcherPriority.Normal, Reconnect);
+                }
+            }
+        }
+
+        private async void Reconnect()
+        {
+            bool success = false;
+
+            Disconnect();
+            if (_shouldReconnect)
+            {
+                _logger.Log($"Reconnecting to {LABEL}", LoggingLevel.Information);
+                try
+                {
+                    success = await Connect(_serialDeviceId);
+                }
+                catch (Exception e)
+                {
+                    _logger.Log($"Failed to reconnect to {LABEL}", LoggingLevel.Information);
+                    _logger.Log(e.ToString(), LoggingLevel.Information);
+                }
+
+                if (!success)
+                {
+                    await Task.Delay(RETRY_DELAY);
+                    _ = _dispatcher.RunAsync(CoreDispatcherPriority.Normal, Reconnect);
+                }
             }
         }
 
