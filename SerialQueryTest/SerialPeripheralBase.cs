@@ -19,12 +19,6 @@ namespace SerialQueryTest
     // peripherals connected via serial
     abstract class SerialPeripheralBase
     {
-        // How long to wait before cancelling async I/O, in milliseconds
-        private const int TASK_CANCEL_TIMEOUT = 2000;
-
-        // How long to wait before retrying connection, in milliseconds
-        private const int RETRY_DELAY = 5000;
-
         private Logger _logger = null;
         private CoreDispatcher _dispatcher = null;
 
@@ -75,7 +69,7 @@ namespace SerialQueryTest
                 _serialDevice.DataBits = dataBits;
                 _serialDevice.Parity = parity;
                 _serialDevice.StopBits = stopBits;
-                _serialDevice.ReadTimeout = new TimeSpan(0, 0, 0, 0, TASK_CANCEL_TIMEOUT /* milliseconds */);
+                _serialDevice.ReadTimeout = new TimeSpan(0, 0, 0, 0, TaskCancelTimeout /* milliseconds */);
 
                 _dataReader = new DataReader(_serialDevice.InputStream);
                 _dataReader.UnicodeEncoding = UnicodeEncoding.Utf8;
@@ -85,7 +79,7 @@ namespace SerialQueryTest
             else
             {
                 // The given device ID cannot be opened.
-                Log("Unable to open {deviceId}", LoggingLevel.Error);
+                Log($"Unable to open {DeviceLabel} at {deviceId}", LoggingLevel.Error);
             }
 
             return success;
@@ -110,7 +104,7 @@ namespace SerialQueryTest
 
         protected Task<uint> ReaderLoadAsync(uint count)
         {
-            CancellationTokenSource cancelSrc = new CancellationTokenSource(TASK_CANCEL_TIMEOUT);
+            CancellationTokenSource cancelSrc = new CancellationTokenSource(TaskCancelTimeout);
             return _dataReader.LoadAsync((uint)count).AsTask<uint>(cancelSrc.Token);
         }
 
@@ -126,20 +120,20 @@ namespace SerialQueryTest
             DisposeSerialObjeccts();
             if (_shouldReconnect)
             {
-                Log($"Reconnecting to {LABEL}", LoggingLevel.Information);
+                Log($"Reconnecting to {DeviceLabel}", LoggingLevel.Information);
                 try
                 {
                     success = await Connect(_serialDeviceId);
                 }
                 catch (Exception e)
                 {
-                    Log($"Failed to reconnect to {LABEL}", LoggingLevel.Information);
+                    Log($"Failed to reconnect to {DeviceLabel}", LoggingLevel.Information);
                     Log(e.ToString(), LoggingLevel.Information);
                 }
 
                 if (!success)
                 {
-                    await Task.Delay(RETRY_DELAY);
+                    await Task.Delay(RetryDelay);
                     _ = RunAsync(CoreDispatcherPriority.Normal, Reconnect);
                 }
             }
@@ -150,21 +144,24 @@ namespace SerialQueryTest
         {
             bool success = false;
 
-            Log($"Checking if this is a {LABEL}: {deviceId}", LoggingLevel.Information);
+            Log($"Checking if this is a {DeviceLabel}: {deviceId}", LoggingLevel.Information);
             try
             {
                 success = await Connect(deviceId);
+
+                // In case of failure, Connect() is responsible for cleanup up connection.
+                if (success)
+                {
+                    Disconnect();
+                }
             }
             catch (Exception e)
             {
                 // Since this is not during actual use, treat as informational rather than error.
-                Log($"Exception thrown while checking if {LABEL} is on {deviceId}", LoggingLevel.Information);
+                Log($"Exception thrown while checking if {DeviceLabel} is on {deviceId}", LoggingLevel.Information);
                 Log(e.ToString(), LoggingLevel.Information);
             }
-            finally
-            {
-                Disconnect();
-            }
+
             return success;
         }
 
@@ -178,7 +175,7 @@ namespace SerialQueryTest
 
         public virtual void DisposeSerialObjeccts()
         {
-            Log($"Disconnecting {LABEL}");
+            Log($"Disconnecting {DeviceLabel}");
             _dataReader?.Dispose();
             _dataReader = null;
             _serialDevice?.Dispose();
@@ -197,9 +194,29 @@ namespace SerialQueryTest
             }
         }
 
-        protected abstract string LABEL
+        // String for user-readable identification DeviceLabel in error messages and logs
+        protected abstract string DeviceLabel
         {
             get;
         }
+
+        // How long to wait before cancelling async I/O, in milliseconds
+        protected virtual int TaskCancelTimeout
+        {
+            get
+            {
+                return 2000;
+            }
+        }
+
+        // How long to wait before retrying connection, in milliseconds
+        protected virtual int RetryDelay
+        {
+            get
+            {
+                return 5000;
+            }
+        }
+
     }
 }

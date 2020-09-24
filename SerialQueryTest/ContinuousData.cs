@@ -36,7 +36,7 @@ namespace SerialQueryTest
         private const int DATA_LENGTH = 13; // When parsing as double, stop just before this character index.
         private const string DELIMITER = "\r\n";
 
-        protected override string LABEL
+        protected override string DeviceLabel
         {
             get
             {
@@ -57,12 +57,12 @@ namespace SerialQueryTest
             double sampleData = 0.0;
             bool connected = false;
 
-            if (await SetupSerialDevice(deviceId, 9600, 8, SerialParity.None, SerialStopBitCount.One))
+            try
             {
-                try
+                if (await SetupSerialDevice(deviceId, 9600, 8, SerialParity.None, SerialStopBitCount.One))
                 {
                     sampleData = await nextData();
-                    Log($"Successfully retrieved {sampleData} from {LABEL} on {deviceId}");
+                    Log($"Successfully retrieved {sampleData} from {DeviceLabel} on {deviceId}");
 
                     connected = true;
                     ShouldReconnect = true;
@@ -70,20 +70,22 @@ namespace SerialQueryTest
                     // Kick off the read loop
                     _ = RunAsync(CoreDispatcherPriority.Low, ReadNextData);
                 }
-                catch (TaskCanceledException)
-                {
-                    Log($"Timed out, inferring {LABEL} is not at {deviceId}");
-                }
-                catch (IOException)
-                {
-                    Log($"Encountered IO error, indicating {LABEL} is not at {deviceId}");
-                }
             }
-
-            if (!connected)
+            catch (TaskCanceledException)
             {
-                // Connection failed, clean everything up.
-                Disconnect();
+                Log($"Timed out, inferring {DeviceLabel} is not at {deviceId}");
+            }
+            catch (IOException)
+            {
+                Log($"Encountered IO error, indicating {DeviceLabel} is not at {deviceId}");
+            }
+            finally
+            {
+                if (!connected)
+                {
+                    // Connection failed, clean everything up.
+                    Disconnect();
+                }
             }
 
             return connected;
@@ -109,7 +111,7 @@ namespace SerialQueryTest
             }
             catch (Exception e)
             {
-                Log($"{LABEL} ReadNextData failed, read loop halted.", LoggingLevel.Error);
+                Log($"{DeviceLabel} ReadNextData failed, read loop halted.", LoggingLevel.Error);
                 Log(e.ToString(), LoggingLevel.Error);
                 if (ShouldReconnect)
                 {
@@ -169,7 +171,7 @@ namespace SerialQueryTest
                 {
                     // This is thrown when the data can't be parsed as UTF8, interpreting to mean the incoming
                     // data was not sent at the baud rate of the expected device.
-                    IOError($"Non UTF-8 data encountered. This is expected when {LABEL} is not on this port.");
+                    IOError($"Non UTF-8 data encountered. This is expected when {DeviceLabel} is not on this port.");
                 }
 
                 deliminiterIndex = inString.IndexOf(DELIMITER);
@@ -185,7 +187,7 @@ namespace SerialQueryTest
                     {
                         // If we have the full length yet there's no delimiter at all in the string we retrieved,
                         // then the problem is worse than just getting offset data.
-                        IOError($"No deliminter in data retrieved from {LABEL}");
+                        IOError($"No deliminter in data retrieved from {DeviceLabel}");
                     }
                     else
                     {
