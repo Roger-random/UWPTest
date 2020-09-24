@@ -33,11 +33,6 @@ namespace SerialQueryTest
             _logger = logger;
         }
 
-        protected IAsyncAction RunAsync(CoreDispatcherPriority priority, DispatchedHandler callback)
-        {
-            return _dispatcher.RunAsync(priority, callback);
-        }
-
         protected void Log(string message, LoggingLevel level = LoggingLevel.Verbose)
         {
             _logger.Log(message, level);
@@ -55,8 +50,7 @@ namespace SerialQueryTest
             throw new InvalidOperationException(message);
         }
 
-        protected async Task<bool> SetupSerialDevice(string deviceId,
-            uint baudRate, ushort dataBits, SerialParity parity, SerialStopBitCount stopBits)
+        private async Task<bool> SetupSerialDevice(string deviceId)
         {
             bool success = false;
 
@@ -65,10 +59,10 @@ namespace SerialQueryTest
             {
                 _serialDeviceId = deviceId;
 
-                _serialDevice.BaudRate = baudRate;
-                _serialDevice.DataBits = dataBits;
-                _serialDevice.Parity = parity;
-                _serialDevice.StopBits = stopBits;
+                _serialDevice.BaudRate = DeviceBaudRate;
+                _serialDevice.DataBits = DeviceDataBits;
+                _serialDevice.Parity   = DeviceParity;
+                _serialDevice.StopBits = DeviceStopBits;
                 _serialDevice.ReadTimeout = new TimeSpan(0, 0, 0, 0, TaskCancelTimeout /* milliseconds */);
 
                 _dataReader = new DataReader(_serialDevice.InputStream);
@@ -85,22 +79,79 @@ namespace SerialQueryTest
             return success;
         }
 
-        protected void VerifyReader()
+        /// <summary>
+        /// Connect to serial device on given deviceId
+        /// </summary>
+        /// <param name="deviceId">Device ID string from DeviceInformation.Id</param>
+        /// <returns>Boolean: true if connection was successful</returns>
+        public virtual async Task<bool> Connect(string deviceId)
         {
-            if (_serialDevice == null)
+            string sampleData = null;
+            bool connected = false;
+
+            try
             {
-                InvalidOperation("nextData called before connecting serial device.");
+                if (await SetupSerialDevice(deviceId))
+                {
+                    sampleData = await NextDataString();
+                    Log("Successfully retrieved sample data."); // {sampleData} content unpredictable, do not log.
+
+                    connected = true;
+                    _shouldReconnect = true;
+
+                    // Kick off the communication loop
+                    _ = _dispatcher.RunAsync(CoreDispatcherPriority.Low, CommunicationLoop);
+                }
             }
-            if (_dataReader == null)
+            catch (TaskCanceledException)
             {
-                InvalidOperation("nextData called before connecting data reader.");
+                Log($"Timed out, inferring {DeviceLabel} is not at {deviceId}");
+            }
+            catch (IOException)
+            {
+                Log($"Encountered IO error, indicating {DeviceLabel} is not at {deviceId}");
+            }
+            finally
+            {
+                if (!connected)
+                {
+                    // Connection failed, clean everything up.
+                    Disconnect();
+                }
+            }
+
+            return connected;
+        }
+
+        private async void CommunicationLoop()
+        {
+            bool success = false;
+
+            if (null == _dataReader || null == _serialDevice)
+            {
+                // Serial device disconnected while we were waiting in the dispatcher queue.
+                return;
+            }
+
+            try
+            {
+                success = await PerformDeviceCommunication();
+
+                _ = _dispatcher.RunAsync(CoreDispatcherPriority.Normal, CommunicationLoop);
+            }
+            catch (Exception e)
+            {
+                Log(e.ToString(), LoggingLevel.Error);
+            }
+
+            if (!success && _shouldReconnect)
+            {
+                Log($"{DeviceLabel} communication loop encountered error, try to reconnect.", LoggingLevel.Error);
+                _ = _dispatcher.RunAsync(CoreDispatcherPriority.Normal, Reconnect);
             }
         }
 
-        protected bool HaveReader()
-        {
-            return (null != _dataReader);
-        }
+        protected abstract Task<bool> PerformDeviceCommunication();
 
         protected Task<uint> ReaderLoadAsync(uint count)
         {
@@ -113,7 +164,7 @@ namespace SerialQueryTest
             return _dataReader.ReadString(codeUnitCount);
         }
 
-        protected async void Reconnect()
+        private async void Reconnect()
         {
             bool success = false;
 
@@ -134,7 +185,7 @@ namespace SerialQueryTest
                 if (!success)
                 {
                     await Task.Delay(RetryDelay);
-                    _ = RunAsync(CoreDispatcherPriority.Normal, Reconnect);
+                    _ = _dispatcher.RunAsync(CoreDispatcherPriority.Normal, Reconnect);
                 }
             }
         }
@@ -165,8 +216,6 @@ namespace SerialQueryTest
             return success;
         }
 
-        public abstract Task<bool> Connect(string deviceId);
-
         public virtual void Disconnect()
         {
             _shouldReconnect = false;
@@ -182,25 +231,12 @@ namespace SerialQueryTest
             _serialDevice = null;
         }
 
-        protected bool ShouldReconnect
-        {
-            get
-            {
-                return _shouldReconnect;
-            }
-            set
-            {
-                _shouldReconnect = value;
-            }
-        }
+        //-----------------------------------------------------------------------------------------------------------
+        //  Operational parameters that can be optionally overridden by derived classes.
 
-        // String for user-readable identification DeviceLabel in error messages and logs
-        protected abstract string DeviceLabel
-        {
-            get;
-        }
-
-        // How long to wait before cancelling async I/O, in milliseconds
+        /// <summary>
+        /// How long to wait before cancelling async I/O, in milliseconds
+        /// </summary>
         protected virtual int TaskCancelTimeout
         {
             get
@@ -209,7 +245,9 @@ namespace SerialQueryTest
             }
         }
 
-        // How long to wait before retrying connection, in milliseconds
+        /// <summary>
+        /// How long to wait before retrying connection, in milliseconds
+        /// </summary>
         protected virtual int RetryDelay
         {
             get
@@ -218,5 +256,26 @@ namespace SerialQueryTest
             }
         }
 
+        //-----------------------------------------------------------------------------------------------------------
+        //  Operational parameters that must be overridden by derived classes.
+
+        /// <summary>
+        /// String for user-readable identification DeviceLabel in error messages and logs
+        /// </summary>
+        protected abstract string DeviceLabel
+        {
+            get;
+        }
+
+        protected abstract uint               DeviceBaudRate { get; }
+        protected abstract ushort             DeviceDataBits { get; }
+        protected abstract SerialParity       DeviceParity { get; }
+        protected abstract SerialStopBitCount DeviceStopBits { get; }
+
+        /// <summary>
+        /// Returns the next piece of data from the device
+        /// </summary>
+        /// <returns>String containing data sent by device</returns>
+        protected abstract Task<string> NextDataString();
     }
 }

@@ -36,13 +36,20 @@ namespace SerialQueryTest
         private const int DATA_LENGTH = 13; // When parsing as double, stop just before this character index.
         private const string DELIMITER = "\r\n";
 
-        protected override string DeviceLabel
-        {
-            get
-            {
-                return "continuous data device";
-            }
-        }
+        // -------------------------------------------------------------------------------------------------------
+        //
+        //  Abstract base properties we must implement
+        //
+        protected override string DeviceLabel { get { return "continuous data device"; } }
+        protected override uint DeviceBaudRate { get { return 9600; } }
+        protected override ushort DeviceDataBits { get { return 8; } }
+        protected override SerialParity DeviceParity { get { return SerialParity.None; } }
+        protected override SerialStopBitCount DeviceStopBits { get { return SerialStopBitCount.One; } }
+
+        // -------------------------------------------------------------------------------------------------------
+        //
+        // Event signaling a data update
+        //
 
         public delegate void ContinuousDataEventHandler(object sender, ContinuousDataEventArgs args);
         public event ContinuousDataEventHandler ContinousDataEvent;
@@ -50,76 +57,6 @@ namespace SerialQueryTest
         public ContinuousData(CoreDispatcher dispatcher, Logger logger) : base (dispatcher, logger)
         {
         }
-
-        // Connect to serial device on given deviceId
-        public override async Task<bool> Connect(string deviceId)
-        {
-            double sampleData = 0.0;
-            bool connected = false;
-
-            try
-            {
-                if (await SetupSerialDevice(deviceId, 9600, 8, SerialParity.None, SerialStopBitCount.One))
-                {
-                    sampleData = await nextData();
-                    Log($"Successfully retrieved {sampleData} from {DeviceLabel} on {deviceId}");
-
-                    connected = true;
-                    ShouldReconnect = true;
-
-                    // Kick off the read loop
-                    _ = RunAsync(CoreDispatcherPriority.Low, ReadNextData);
-                }
-            }
-            catch (TaskCanceledException)
-            {
-                Log($"Timed out, inferring {DeviceLabel} is not at {deviceId}");
-            }
-            catch (IOException)
-            {
-                Log($"Encountered IO error, indicating {DeviceLabel} is not at {deviceId}");
-            }
-            finally
-            {
-                if (!connected)
-                {
-                    // Connection failed, clean everything up.
-                    Disconnect();
-                }
-            }
-
-            return connected;
-        }
-
-        private async void ReadNextData()
-        {
-            if (!HaveReader())
-            {
-                // Serial device disconnected while we were waiting in the dispatcher queue.
-                return;
-            }
-
-            try
-            {
-                // Read the new value and send it to subscribers
-                double newValue = await nextData();
-                OnContinuousDataEvent(new ContinuousDataEventArgs(newValue));
-
-                // Take a short break before continuing the read loop
-                await Task.Delay(LOOP_DELAY);
-                _ = RunAsync(CoreDispatcherPriority.Normal, ReadNextData);
-            }
-            catch (Exception e)
-            {
-                Log($"{DeviceLabel} ReadNextData failed, read loop halted.", LoggingLevel.Error);
-                Log(e.ToString(), LoggingLevel.Error);
-                if (ShouldReconnect)
-                {
-                    _ = RunAsync(CoreDispatcherPriority.Normal, Reconnect);
-                }
-            }
-        }
-
         protected virtual void OnContinuousDataEvent(ContinuousDataEventArgs e)
         {
             ContinuousDataEventHandler raiseEvent = ContinousDataEvent;
@@ -130,7 +67,23 @@ namespace SerialQueryTest
             }
         }
 
-        private bool validFormat(string inputData)
+        protected override async Task<bool> PerformDeviceCommunication()
+        {
+            // Read the next value
+            string dataString = await NextDataString();
+            double parsedValue = Double.Parse(dataString.Substring(0, DATA_LENGTH));
+
+            // And send it to subscribers
+            OnContinuousDataEvent(new ContinuousDataEventArgs(parsedValue));
+
+            // Take a short break before continuing the read loop
+            await Task.Delay(LOOP_DELAY);
+
+            // Simple implementation always returns "true" for successful.
+            return true;
+        }
+
+        private bool ValidateFormat(string inputData)
         {
             // Match input string against expected pattern using regular expression
             // C# Regular Expression syntax https://docs.microsoft.com/en-us/dotnet/standard/base-types/regular-expression-language-quick-reference
@@ -151,14 +104,11 @@ namespace SerialQueryTest
             return Regex.IsMatch(inputData, "^[+-]\\d+.\\d+\\s+lbs\r\n$");
         }
 
-        private async Task<double> nextData()
+        protected override async Task<string> NextDataString()
         {
             string inString = null;
-            double parsedValue = 0.0;
             int deliminiterIndex;
             int syncRemainder = 0;
-
-            VerifyReader();
 
             uint loadedSize = await ReaderLoadAsync(EXPECTED_LENGTH);
             if (loadedSize > 0)
@@ -222,18 +172,17 @@ namespace SerialQueryTest
                     }
                 }
 
-                if (!validFormat(inString))
+                if (!ValidateFormat(inString))
                 {
                     IOError($"Improper format string {inString}");
                 }
-                parsedValue =  Double.Parse(inString.Substring(0, DATA_LENGTH));
             }
             else
             {
                 IOError("Unexpected: LoadAsync() returned with zero bytes.");
             }
 
-            return parsedValue;
+            return inString;
         }
     }
 }
