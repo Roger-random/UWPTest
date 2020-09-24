@@ -16,6 +16,8 @@ using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
 
+using Com.Regorlas.Logging;
+
 namespace SerialQueryTest
 {
     /// <summary>

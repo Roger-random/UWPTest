@@ -12,7 +12,9 @@ using Windows.Storage.Streams;
 using Windows.UI.Core;
 using UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding;
 
-namespace SerialQueryTest
+using Com.Regorlas.Logging;
+
+namespace Com.Regorlas.Serial
 {
     class ResponseDataEventArgs : EventArgs
     {

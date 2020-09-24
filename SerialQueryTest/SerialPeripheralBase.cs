@@ -1,19 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.IO.Ports;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Devices.SerialCommunication;
-using Windows.Foundation;
 using Windows.Foundation.Diagnostics;
 using Windows.Storage.Streams;
 using Windows.UI.Core;
 using UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding;
 
-namespace SerialQueryTest
+using Com.Regorlas.Logging;
+
+namespace Com.Regorlas.Serial
 {
     // Base class for common functionality when communicating with
     // peripherals connected via serial

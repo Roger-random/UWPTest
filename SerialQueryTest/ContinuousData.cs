@@ -1,18 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using Windows.Devices.SerialCommunication;
-using Windows.Foundation.Diagnostics;
-using Windows.Storage.Streams;
 using Windows.UI.Core;
-using UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding;
 
-namespace SerialQueryTest
+using Com.Regorlas.Logging;
+
+namespace Com.Regorlas.Serial
 {
     class ContinuousDataEventArgs : EventArgs
     {

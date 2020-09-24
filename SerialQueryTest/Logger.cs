@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Windows.Foundation.Diagnostics;
 using Windows.Storage;
 
-namespace SerialQueryTest
+namespace Com.Regorlas.Logging
 {
     public class Logger
     {
