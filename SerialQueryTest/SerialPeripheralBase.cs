@@ -121,7 +121,7 @@ namespace Com.Regorlas.Serial
                 if (!success)
                 {
                     // Connection failed, clean everything up.
-                    Disconnect();
+                    DisposeSerialObjeccts();
                 }
             }
 
@@ -181,9 +181,9 @@ namespace Com.Regorlas.Serial
         {
             bool success = false;
 
-            DisposeSerialObjeccts();
             if (_shouldReconnect)
             {
+                DisposeSerialObjeccts();
                 Log($"Reconnecting to {DeviceLabel}", LoggingLevel.Information);
                 try
                 {
@@ -237,7 +237,7 @@ namespace Com.Regorlas.Serial
 
         public virtual void DisposeSerialObjeccts()
         {
-            Log($"Disconnecting {DeviceLabel}");
+            Log($"Disposing serial I/O objects of {DeviceLabel}");
             _dataWriter?.Dispose();
             _dataWriter = null;
             _dataReader?.Dispose();
