@@ -172,7 +172,7 @@ namespace Com.Regorlas.Serial
 
                 if (!inString.EndsWith(DELIMITER))
                 {
-                    IOError($"{DeviceLabel} response did not end with expected deliminiter.");
+                    IOError($"{DeviceLabel} response did not end with expected delimiter.");
                 }
 
                 if (!ValidateFormat(inString))
