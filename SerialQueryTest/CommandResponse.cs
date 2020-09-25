@@ -13,6 +13,7 @@ using Windows.UI.Core;
 using UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding;
 
 using Com.Regorlas.Logging;
+using System.Reflection.Metadata.Ecma335;
 
 namespace Com.Regorlas.Serial
 {
@@ -27,16 +28,8 @@ namespace Com.Regorlas.Serial
     }
 
     // Test class representing serial devices that continuously emit data
-    class CommandResponse
+    class CommandResponse : SerialPeripheralBase
     {
-        private const string LABEL = "command+response device";
-
-        private const int READ_TIMEOUT = 100; // milliseconds
-        private const int WRITE_TIMEOUT = 100; // milliseconds
-
-        // Should be longer than READ or WRITE timeout.
-        private const int TASK_CANCEL_TIMEOUT = 500;
-
         // How long to wait between querying position. If this is too short, it
         // appears to starve some shared resources and will affect other serial ports.
         private const int LOOP_DELAY = 100;
@@ -45,201 +38,27 @@ namespace Com.Regorlas.Serial
         private const int EXPECTED_LENGTH = 10;
         private const string DELIMITER = "\r";
 
-        // How long to wait before retrying connection, in milliseconds
-        private const int RETRY_DELAY = 5000;
+        // -------------------------------------------------------------------------------------------------------
+        //
+        //  Abstract base properties we must implement
+        //
+        protected override string DeviceLabel { get { return "command+response device"; } }
+        protected override uint DeviceBaudRate { get { return 4800; } }
+        protected override ushort DeviceDataBits { get { return 7; } }
+        protected override SerialParity DeviceParity { get { return SerialParity.Even; } }
+        protected override SerialStopBitCount DeviceStopBits { get { return SerialStopBitCount.Two; } }
 
-        private SerialDevice _serialDevice = null;
-        private string _serialDeviceId = null;
-        private Logger _logger = null;
-        private DataReader _dataReader = null;
-        private DataWriter _dataWriter = null;
-        private CoreDispatcher _dispatcher = null;
-        private bool _shouldReconnect = false;
+        // -------------------------------------------------------------------------------------------------------
+        //
+        // Event signaling a data update
+        //
 
         public delegate void ResponseDataEventHandler(object sender, ResponseDataEventArgs args);
         public event ResponseDataEventHandler ResponseDataEvent;
 
-        public CommandResponse(CoreDispatcher dispatcher, Logger logger)
+        public CommandResponse(CoreDispatcher dispatcher, Logger logger) : base (dispatcher, logger)
         {
-            _dispatcher = dispatcher;
-            _logger = logger;
         }
-
-        // Connect to serial device on given deviceId and see if it acts like the target device
-        public async Task<bool> IsDeviceOnPort(string deviceId)
-        {
-            bool success = false;
-
-            _logger.Log($"Checking if this is a {LABEL}: {deviceId}", LoggingLevel.Information);
-            try
-            {
-                success = await Connect(deviceId);
-            }
-            catch (Exception e)
-            {
-                // Since this is not during actual use, treat as informational rather than error.
-                _logger.Log($"Exception thrown while checking if {LABEL} is on {deviceId}", LoggingLevel.Information);
-                _logger.Log(e.ToString(), LoggingLevel.Information);
-            }
-            finally
-            {
-                Disconnect();
-            }
-
-            return success;
-        }
-
-        public async Task<bool> Connect(string deviceId)
-        {
-            bool noDataStreaming = false;
-            double sampleData = 0.0;
-            bool connected = false;
-
-            _serialDevice = await SerialDevice.FromIdAsync(deviceId);
-            if (_serialDevice != null)
-            {
-                _serialDeviceId = deviceId;
-
-                _serialDevice.BaudRate = 4800;
-                _serialDevice.DataBits = 7;
-                _serialDevice.Parity = SerialParity.Even;
-                _serialDevice.StopBits = SerialStopBitCount.Two;
-                _serialDevice.ReadTimeout = new TimeSpan(0, 0, 0, 0, READ_TIMEOUT /* milliseconds */);
-                _serialDevice.WriteTimeout = new TimeSpan(0, 0, 0, 0, WRITE_TIMEOUT /* milliseconds */);
-
-                _dataWriter = new DataWriter(_serialDevice.OutputStream);
-                _dataWriter.UnicodeEncoding = UnicodeEncoding.Utf8;
-
-                _dataReader = new DataReader(_serialDevice.InputStream);
-                _dataReader.UnicodeEncoding = UnicodeEncoding.Utf8;
-
-                try
-                {
-                    sampleData = await nextData(2000); // 2 second timeout for the first read.
-                    _logger.Log($"Expected no data but retrieved {sampleData}, this is not {LABEL}");
-                    noDataStreaming = false;
-                }
-                catch(TaskCanceledException)
-                {
-                    // We timed out trying to read data, which is expected and desirable because this
-                    // type of device does not send data until command is sent.
-                    noDataStreaming = true;
-                }
-                catch(IOException)
-                {
-                    // An IO error, however, is a failure condition and probably means we're not
-                    // looking at the right port.
-                    _logger.Log($"Encountered IO error, indicating {LABEL} is not at {deviceId}");
-                }
-
-                if (noDataStreaming)
-                {
-                    // We verified this device is silent when unprompted. Now we send a prompt to
-                    // see if it answers.
-                    await sendQuery();
-
-                    try
-                    {
-                        // Follow-up reads should be fast, don't need 2 second timeout.
-                        sampleData = await nextData();
-                        _logger.Log($"Saw response {sampleData} to command, {LABEL} is on {deviceId}");
-                        connected = true;
-                        _shouldReconnect = true;
-
-                        // Kick off the read loop
-                        _ = _dispatcher.RunAsync(CoreDispatcherPriority.Low, ReadNextData);
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        _logger.Log($"Timed out after command, {LABEL} is not on {deviceId}");
-                    }
-                }
-            }
-            else
-            {
-                // The given device ID cannot be opened.
-                _logger.Log("Unable to open {deviceId}", LoggingLevel.Error);
-            }
-
-            if (!connected)
-            {
-                // Connection failed, clean everything up.
-                Disconnect();
-            }
-
-            return connected;
-        }
-
-        // Dispose and clear all handles to serial device
-        public void Disconnect()
-        {
-            _logger.Log($"Disconnecting {LABEL}");
-            _dataReader?.Dispose();
-            _dataReader = null;
-            _dataWriter?.Dispose();
-            _dataWriter = null;
-            _serialDevice?.Dispose();
-            _serialDevice = null;
-        }
-
-        private async void ReadNextData()
-        {
-            if (null == _dataReader)
-            {
-                // Serial device disconnected while we were waiting in the dispatcher queue.
-                return;
-            }
-
-            try
-            {
-                // Send the query...
-                await sendQuery();
-
-                // .. read the response and pass it on to subscribers
-                double newValue = await nextData();
-                OnResponseDataEvent(new ResponseDataEventArgs(newValue));
-
-                // Take a short break before continuing the read loop
-                await Task.Delay(LOOP_DELAY);
-                _ = _dispatcher.RunAsync(CoreDispatcherPriority.Normal, ReadNextData);
-            }
-            catch (Exception e)
-            {
-                _logger.Log($"{LABEL} ReadNextData failed, read loop halted.", LoggingLevel.Error);
-                _logger.Log(e.ToString(), LoggingLevel.Error);
-                if (_shouldReconnect)
-                {
-                    _ = _dispatcher.RunAsync(CoreDispatcherPriority.Normal, Reconnect);
-                }
-            }
-        }
-
-        private async void Reconnect()
-        {
-            bool success = false;
-
-            Disconnect();
-            if (_shouldReconnect)
-            {
-                _logger.Log($"Reconnecting to {LABEL}", LoggingLevel.Information);
-                try
-                {
-                    success = await Connect(_serialDeviceId);
-                }
-                catch (Exception e)
-                {
-                    _logger.Log($"Failed to reconnect to {LABEL}", LoggingLevel.Information);
-                    _logger.Log(e.ToString(), LoggingLevel.Information);
-                }
-
-                if (!success)
-                {
-                    await Task.Delay(RETRY_DELAY);
-                    _ = _dispatcher.RunAsync(CoreDispatcherPriority.Normal, Reconnect);
-                }
-            }
-        }
-
         protected virtual void OnResponseDataEvent(ResponseDataEventArgs e)
         {
             ResponseDataEventHandler raiseEvent = ResponseDataEvent;
@@ -250,15 +69,69 @@ namespace Com.Regorlas.Serial
             }
         }
 
-        private Task sendQuery(int cancelTimeout = TASK_CANCEL_TIMEOUT)
+        protected override async Task<bool> GetSampleData()
         {
-            CancellationTokenSource cancelSrc = new CancellationTokenSource(cancelTimeout);
+            bool noDataStreaming = false;
+            string sampleData;
+            bool success = false;
 
-            _dataWriter.WriteString("?");
-            return _dataWriter.StoreAsync().AsTask<uint>(cancelSrc.Token);
+            try
+            {
+                sampleData = await NextDataString();
+                Log($"Expected no data but retrieved {sampleData}, this is not {DeviceLabel}");
+                noDataStreaming = false;
+            }
+            catch(TaskCanceledException)
+            {
+                // We timed out trying to read data, which is expected and desirable because this
+                // type of device does not send data until command is sent.
+                noDataStreaming = true;
+            }
+            catch(IOException)
+            {
+                // An IO error, however, is a failure condition and probably means we're not
+                // looking at the right port.
+                Log($"Encountered IO error, implying this is not {DeviceLabel}");
+            }
+
+            if (noDataStreaming)
+            {
+                // We verified this device is silent when unprompted. Now we send a prompt to
+                // see if it answers.
+                await WriteAndStore("?");
+
+                try
+                {
+                    sampleData = await NextDataString();
+                    Log($"Saw response valid for a {DeviceLabel}");
+                    success = true;
+                }
+                catch (TaskCanceledException)
+                {
+                    Log($"Timed out after command, this is not {DeviceLabel}");
+                }
+            }
+
+            return success;
         }
 
-        private bool validFormat(string inputData)
+        protected override async Task<bool> PerformDeviceCommunication()
+        {
+            // Send the query...
+            await WriteAndStore("?");
+
+            // .. read the response and pass it on to subscribers
+            string newValue = await NextDataString();
+            double parsedValue = Double.Parse(newValue);
+            OnResponseDataEvent(new ResponseDataEventArgs(parsedValue));
+
+            // Take a short break before continuing the read loop
+            await Task.Delay(LOOP_DELAY);
+
+            return true;
+        }
+
+        private bool ValidateFormat(string inputData)
         {
             // Match input string against expected pattern using regular expression
             // C# Regular Expression syntax https://docs.microsoft.com/en-us/dotnet/standard/base-types/regular-expression-language-quick-reference
@@ -279,65 +152,40 @@ namespace Com.Regorlas.Serial
             return Regex.IsMatch(inputData, "^[+-]\\d+.\\d+\r$");
         }
 
-        private async Task<double> nextData(int cancelTimeout = TASK_CANCEL_TIMEOUT)
+        protected override async Task<string> NextDataString()
         {
             string inString = null;
-            double parsedValue = 0.0;
 
-            if (_serialDevice == null)
-            {
-                InvalidOperation("ReadSensorReport called before connecting serial device.");
-            }
-            if (_dataReader == null)
-            {
-                InvalidOperation("ReadSensorReport called before connecting data reader.");
-            }
-
-            CancellationTokenSource cancelSrc = new CancellationTokenSource(cancelTimeout);
-            uint loadedSize = await _dataReader.LoadAsync(EXPECTED_LENGTH).AsTask<uint>(cancelSrc.Token);
+            uint loadedSize = await ReaderLoadAsync(EXPECTED_LENGTH);
             if (loadedSize > 0)
             {
                 try
                 {
-                    inString = _dataReader.ReadString(loadedSize);
+                    inString = ReaderReadString(loadedSize);
                 }
                 catch (ArgumentOutOfRangeException)
                 {
                     // This is thrown when the data can't be parsed as UTF8, interpreting to mean the incoming
                     // data was not sent at the baud rate of the expected device.
-                    IOError($"Non UTF-8 data encountered. This is expected when {LABEL} is not on this port.");
+                    IOError($"Non UTF-8 data encountered. This is expected when {DeviceLabel} is not on this port.");
                 }
 
                 if (!inString.EndsWith(DELIMITER))
                 {
-                    IOError($"{LABEL} response did not end with expected deliminiter {DELIMITER}");
+                    IOError($"{DeviceLabel} response did not end with expected deliminiter.");
                 }
 
-                if (!validFormat(inString))
+                if (!ValidateFormat(inString))
                 {
                     IOError($"Improper format string {inString}");
                 }
-
-                parsedValue = Double.Parse(inString);
             }
             else
             {
                 IOError("Unexpected: LoadAsync() returned with zero bytes.");
             }
 
-            return parsedValue;
-        }
-
-        private void IOError(string message)
-        {
-            _logger.Log(message, LoggingLevel.Error);
-            throw new IOException(message);
-        }
-
-        private void InvalidOperation(string message)
-        {
-            _logger.Log(message, LoggingLevel.Error);
-            throw new InvalidOperationException(message);
+            return inString;
         }
     }
 }

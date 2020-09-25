@@ -22,6 +22,7 @@ namespace Com.Regorlas.Serial
         private SerialDevice _serialDevice = null;
         private string _serialDeviceId = null;
         private DataReader _dataReader = null;
+        private DataWriter _dataWriter = null;
         private bool _shouldReconnect = false;
 
         public SerialPeripheralBase(CoreDispatcher dispatcher, Logger logger)
@@ -60,10 +61,18 @@ namespace Com.Regorlas.Serial
                 _serialDevice.DataBits = DeviceDataBits;
                 _serialDevice.Parity   = DeviceParity;
                 _serialDevice.StopBits = DeviceStopBits;
-                _serialDevice.ReadTimeout = new TimeSpan(0, 0, 0, 0, TaskCancelTimeout /* milliseconds */);
+                _serialDevice.ReadTimeout = new TimeSpan(0, 0, 0, 0, TaskCancelTimeout);
+                _serialDevice.WriteTimeout = new TimeSpan(0, 0, 0, 0, TaskCancelTimeout);
 
-                _dataReader = new DataReader(_serialDevice.InputStream);
-                _dataReader.UnicodeEncoding = UnicodeEncoding.Utf8;
+                _dataWriter = new DataWriter(_serialDevice.OutputStream)
+                {
+                    UnicodeEncoding = UnicodeEncoding.Utf8
+                };
+
+                _dataReader = new DataReader(_serialDevice.InputStream)
+                {
+                    UnicodeEncoding = UnicodeEncoding.Utf8
+                };
 
                 success = true;
             }
@@ -83,21 +92,20 @@ namespace Com.Regorlas.Serial
         /// <returns>Boolean: true if connection was successful</returns>
         public virtual async Task<bool> Connect(string deviceId)
         {
-            string sampleData = null;
-            bool connected = false;
+            bool success = false;
 
             try
             {
                 if (await SetupSerialDevice(deviceId))
                 {
-                    sampleData = await NextDataString();
-                    Log("Successfully retrieved sample data."); // {sampleData} content unpredictable, do not log.
+                    success = await GetSampleData();
+                    if (success)
+                    {
+                        _shouldReconnect = true;
 
-                    connected = true;
-                    _shouldReconnect = true;
-
-                    // Kick off the communication loop
-                    _ = _dispatcher.RunAsync(CoreDispatcherPriority.Low, CommunicationLoop);
+                        // Kick off the communication loop
+                        _ = _dispatcher.RunAsync(CoreDispatcherPriority.Low, CommunicationLoop);
+                    }
                 }
             }
             catch (TaskCanceledException)
@@ -110,14 +118,14 @@ namespace Com.Regorlas.Serial
             }
             finally
             {
-                if (!connected)
+                if (!success)
                 {
                     // Connection failed, clean everything up.
                     Disconnect();
                 }
             }
 
-            return connected;
+            return success;
         }
 
         private async void CommunicationLoop()
@@ -149,6 +157,14 @@ namespace Com.Regorlas.Serial
         }
 
         protected abstract Task<bool> PerformDeviceCommunication();
+
+        protected Task WriteAndStore(string value)
+        {
+            CancellationTokenSource cancelSrc = new CancellationTokenSource(TaskCancelTimeout);
+
+            _dataWriter.WriteString(value);
+            return _dataWriter.StoreAsync().AsTask<uint>(cancelSrc.Token);
+        }
 
         protected Task<uint> ReaderLoadAsync(uint count)
         {
@@ -222,6 +238,8 @@ namespace Com.Regorlas.Serial
         public virtual void DisposeSerialObjeccts()
         {
             Log($"Disconnecting {DeviceLabel}");
+            _dataWriter?.Dispose();
+            _dataWriter = null;
             _dataReader?.Dispose();
             _dataReader = null;
             _serialDevice?.Dispose();
@@ -268,6 +286,12 @@ namespace Com.Regorlas.Serial
         protected abstract ushort             DeviceDataBits { get; }
         protected abstract SerialParity       DeviceParity { get; }
         protected abstract SerialStopBitCount DeviceStopBits { get; }
+
+        /// <summary>
+        /// Test device communication by retrieving a piece of sample data
+        /// </summary>
+        /// <returns>True if valid data was retrieved.</returns>
+        protected abstract Task<bool> GetSampleData();
 
         /// <summary>
         /// Returns the next piece of data from the device

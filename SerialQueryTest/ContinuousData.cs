@@ -61,6 +61,14 @@ namespace Com.Regorlas.Serial
             }
         }
 
+        protected override async Task<bool> GetSampleData()
+        {
+            string sampleData = await NextDataString();
+            Log("Successfully retrieved sample data."); // {sampleData} content unpredictable, do not log.
+
+            return true;
+        }
+
         protected override async Task<bool> PerformDeviceCommunication()
         {
             // Read the next value
@@ -131,7 +139,7 @@ namespace Com.Regorlas.Serial
                     {
                         // If we have the full length yet there's no delimiter at all in the string we retrieved,
                         // then the problem is worse than just getting offset data.
-                        IOError($"No deliminter in data retrieved from {DeviceLabel}");
+                        IOError($"No delimiter in data retrieved from {DeviceLabel}");
                     }
                     else
                     {
