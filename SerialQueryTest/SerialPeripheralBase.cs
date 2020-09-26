@@ -25,29 +25,52 @@ namespace Com.Regorlas.Serial
         private DataWriter _dataWriter = null;
         private bool _shouldReconnect = false;
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="dispatcher">Instance of CoreDispatcher to use for queueing tasks</param>
+        /// <param name="logger">Instance of simple logger</param>
         public SerialPeripheralBase(CoreDispatcher dispatcher, Logger logger)
         {
             _dispatcher = dispatcher;
             _logger = logger;
         }
 
+        /// <summary>
+        /// Send data to the simple logger.
+        /// </summary>
+        /// <param name="message">Log message</param>
+        /// <param name="level">Message priority level</param>
         protected void Log(string message, LoggingLevel level = LoggingLevel.Verbose)
         {
             _logger.Log(message, level);
         }
 
+        /// <summary>
+        /// Log an error message and throw IOException with it.
+        /// </summary>
+        /// <param name="message">Error message</param>
         protected void IOError(string message)
         {
             Log(message, LoggingLevel.Error);
             throw new IOException(message);
         }
 
+        /// <summary>
+        /// Log an error message and throw InvalidOperationException with it.
+        /// </summary>
+        /// <param name="message">Error message</param>
         protected void InvalidOperation(string message)
         {
             Log(message, LoggingLevel.Error);
             throw new InvalidOperationException(message);
         }
 
+        /// <summary>
+        /// Configure and open a serial communication channel for sending and receiving strings.
+        /// </summary>
+        /// <param name="deviceId">Device ID string from DeviceInformation.Id</param>
+        /// <returns>True if the serial device has been successfully opened</returns>
         private async Task<bool> SetupSerialDevice(string deviceId)
         {
             bool success = false;
@@ -128,6 +151,9 @@ namespace Com.Regorlas.Serial
             return success;
         }
 
+        /// <summary>
+        /// Task executed periodically to communicate with device.
+        /// </summary>
         private async void CommunicationLoop()
         {
             bool success = false;
@@ -142,7 +168,10 @@ namespace Com.Regorlas.Serial
             {
                 success = await PerformDeviceCommunication();
 
-                _ = _dispatcher.RunAsync(CoreDispatcherPriority.Normal, CommunicationLoop);
+                if (success)
+                {
+                    _ = _dispatcher.RunAsync(CoreDispatcherPriority.Normal, CommunicationLoop);
+                }
             }
             catch (Exception e)
             {
@@ -156,8 +185,11 @@ namespace Com.Regorlas.Serial
             }
         }
 
-        protected abstract Task<bool> PerformDeviceCommunication();
-
+        /// <summary>
+        /// Write the given string out to the serial device.
+        /// </summary>
+        /// <param name="value">String to write to device</param>
+        /// <returns>Task to await write completion</returns>
         protected Task WriteAndStore(string value)
         {
             CancellationTokenSource cancelSrc = new CancellationTokenSource(WriteTaskCancelTimeout);
@@ -166,17 +198,30 @@ namespace Com.Regorlas.Serial
             return _dataWriter.StoreAsync().AsTask<uint>(cancelSrc.Token);
         }
 
+        /// <summary>
+        /// Load bytes from the serial device for later interpretation by ReaderReadString and others.
+        /// </summary>
+        /// <param name="count">Count of bytes to attempt reading</param>
+        /// <returns>Number of bytes actually read</returns>
         protected Task<uint> ReaderLoadAsync(uint count)
         {
             CancellationTokenSource cancelSrc = new CancellationTokenSource(ReadTaskCancelTimeout);
             return _dataReader.LoadAsync((uint)count).AsTask<uint>(cancelSrc.Token);
         }
 
+        /// <summary>
+        /// Read bytes retrieved by ReaderLoadAsync, interpreting as string.
+        /// </summary>
+        /// <param name="codeUnitCount">Length of expected string.</param>
+        /// <returns>String sent by serial device</returns>
         protected string ReaderReadString(uint codeUnitCount)
         {
             return _dataReader.ReadString(codeUnitCount);
         }
 
+        /// <summary>
+        /// Closes the serial device connection and attempt to reconnect.
+        /// </summary>
         private async void Reconnect()
         {
             bool success = false;
@@ -203,7 +248,11 @@ namespace Com.Regorlas.Serial
             }
         }
 
-        // Connect to serial device on given deviceId and see if it acts like the target device
+        /// <summary>
+        /// Connect to serial device on given deviceId and see if it acts like the target device.
+        /// </summary>
+        /// <param name="deviceId">Device ID string from DeviceInformation.Id</param>
+        /// <returns>True if the device behaves as expected</returns>
         public async Task<bool> IsDeviceOnPort(string deviceId)
         {
             bool success = false;
@@ -229,12 +278,19 @@ namespace Com.Regorlas.Serial
             return success;
         }
 
+        /// <summary>
+        /// Dispose all the serial communication objects associated with this device, do not try to reconnect.
+        /// </summary>
         public virtual void Disconnect()
         {
             _shouldReconnect = false;
             DisposeSerialObjeccts();
         }
 
+        /// <summary>
+        /// Dispose all the serial communication objects associated with this device. We may or may not try to
+        /// reconnect after this.
+        /// </summary>
         public virtual void DisposeSerialObjeccts()
         {
             Log($"Disposing serial I/O objects of {DeviceLabel}");
@@ -345,5 +401,19 @@ namespace Com.Regorlas.Serial
         /// </summary>
         /// <returns>String containing data sent by device</returns>
         protected abstract Task<string> NextDataString();
+
+        /// <summary>
+        /// This is called regularly so derived classes can perform their own device-specific communication tasks.
+        ///
+        /// Should call await Task.Delay() an amount appropriate for the device before returning. Without the
+        /// delay, it may starve peer peripherals of processing cycles for their own communication tasks, but
+        /// the delay may be skipped if necessary for brief bursts of maximum performance.
+        ///
+        /// In case of error, either return "false" or throw an exception. In both cases, the serial connection will
+        /// be closed and a reconnection to the device will be attempted after waiting "RetryDelay"
+        /// </summary>
+        /// <returns>True if successful, False if connection should be closed and reconnected.</returns>
+        protected abstract Task<bool> PerformDeviceCommunication();
+
     }
 }
