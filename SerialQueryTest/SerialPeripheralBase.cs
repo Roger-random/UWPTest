@@ -61,8 +61,8 @@ namespace Com.Regorlas.Serial
                 _serialDevice.DataBits = DeviceDataBits;
                 _serialDevice.Parity   = DeviceParity;
                 _serialDevice.StopBits = DeviceStopBits;
-                _serialDevice.ReadTimeout = new TimeSpan(0, 0, 0, 0, TaskCancelTimeout);
-                _serialDevice.WriteTimeout = new TimeSpan(0, 0, 0, 0, TaskCancelTimeout);
+                _serialDevice.ReadTimeout = new TimeSpan(0, 0, 0, 0, ReadTimeout);
+                _serialDevice.WriteTimeout = new TimeSpan(0, 0, 0, 0, WriteTimeout);
 
                 _dataWriter = new DataWriter(_serialDevice.OutputStream)
                 {
@@ -160,7 +160,7 @@ namespace Com.Regorlas.Serial
 
         protected Task WriteAndStore(string value)
         {
-            CancellationTokenSource cancelSrc = new CancellationTokenSource(TaskCancelTimeout);
+            CancellationTokenSource cancelSrc = new CancellationTokenSource(WriteTaskCancelTimeout);
 
             _dataWriter.WriteString(value);
             return _dataWriter.StoreAsync().AsTask<uint>(cancelSrc.Token);
@@ -168,7 +168,7 @@ namespace Com.Regorlas.Serial
 
         protected Task<uint> ReaderLoadAsync(uint count)
         {
-            CancellationTokenSource cancelSrc = new CancellationTokenSource(TaskCancelTimeout);
+            CancellationTokenSource cancelSrc = new CancellationTokenSource(ReadTaskCancelTimeout);
             return _dataReader.LoadAsync((uint)count).AsTask<uint>(cancelSrc.Token);
         }
 
@@ -250,13 +250,60 @@ namespace Com.Regorlas.Serial
         //  Operational parameters that can be optionally overridden by derived classes.
 
         /// <summary>
-        /// How long to wait before cancelling async I/O, in milliseconds
+        /// Given to the serial device so read operations can time out instead of stuck waiting for
+        /// data that may never come.
+        ///
+        /// In case it doesn't work, backup is ReadTaskCancelTimeout, which should be a larger value.
         /// </summary>
-        protected virtual int TaskCancelTimeout
+        protected virtual int ReadTimeout
+        {
+            get
+            {
+                return 500;
+            }
+        }
+
+        /// <summary>
+        /// How long to wait before cancelling async I/O, in milliseconds. When a read operation fails
+        /// to return after this amount of time, a TaskCanceledException is thrown instead of risking
+        /// being stuck forever.
+        ///
+        /// Since this is a backup for serial port read timeout, it should be a larger value.
+        /// </summary>
+        protected virtual int ReadTaskCancelTimeout
         {
             get
             {
                 return 2000;
+            }
+        }
+
+        /// <summary>
+        /// Given to the serial device so write operations can time out instead of stuck waiting for
+        /// data that may never come.
+        ///
+        /// In case it doesn't work, backup is WriteTaskCancelTimeout, which should be a larger value.
+        /// </summary>
+        protected virtual int WriteTimeout
+        {
+            get
+            {
+                return 100;
+            }
+        }
+
+        /// <summary>
+        /// How long to wait before cancelling async I/O, in milliseconds. When a write operation fails
+        /// to return after this amount of time, a TaskCanceledException is thrown instead of risking
+        /// being stuck forever.
+        ///
+        /// Since this is a backup for serial port write timeout, it should be a larger value.
+        /// </summary>
+        protected virtual int WriteTaskCancelTimeout
+        {
+            get
+            {
+                return 1000;
             }
         }
 
