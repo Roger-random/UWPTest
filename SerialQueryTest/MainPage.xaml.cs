@@ -38,6 +38,8 @@ namespace SerialQueryTest
         private string _cdDeviceId = null;
         private CommandResponse _crDevice = null;
         private string _crDeviceId = null;
+        private TestStub _tsDevice = null;
+        private string _tsDeviceId = null;
 
         public MainPage()
         {
@@ -55,6 +57,8 @@ namespace SerialQueryTest
 
             _cdDevice = new ContinuousData(Dispatcher, _logger);
             _crDevice = new CommandResponse(Dispatcher, _logger);
+            _tsDevice = new TestStub(Dispatcher, _logger);
+
 
             _ = Dispatcher.RunAsync(CoreDispatcherPriority.Low, EnumerateSerialDevices);
         }
@@ -103,6 +107,7 @@ namespace SerialQueryTest
         {
             _cdDeviceId = null;
             _crDeviceId = null;
+            _tsDeviceId = null;
 
             DeviceInformationCollection deviceinfos = await DeviceInformation.FindAllAsync(SerialDevice.GetDeviceSelector());
 
@@ -129,6 +134,17 @@ namespace SerialQueryTest
                 {
                     _logger.Log("crDevice FALSE", LoggingLevel.Information);
                 }
+
+                if (await _tsDevice.IsDeviceOnPort(deviceinfo.Id))
+                {
+                    _tsDeviceId = deviceinfo.Id;
+                    _logger.Log("tsDevice TRUE", LoggingLevel.Information);
+                }
+                else
+                {
+                    _logger.Log("tsDevice FALSE", LoggingLevel.Information);
+                }
+
             }
 
             _ = Dispatcher.RunAsync(CoreDispatcherPriority.Low, ConnectSerialDevices);
@@ -167,6 +183,26 @@ namespace SerialQueryTest
                     _logger.Log($"Failed to connect to command response device {_crDeviceId}");
                 }
             }
+
+            if (null != _tsDeviceId)
+            {
+                success = await _tsDevice.Connect(_tsDeviceId);
+
+                if (success)
+                {
+                    tbStub.Text = "Test stub online!";
+                    _tsDevice.MVCEvent += _tsDevice_MVCEvent;
+                }
+                else
+                {
+                    _logger.Log($"Failed to connect to test stub device {_tsDeviceId}");
+                }
+            }
+        }
+
+        private void _tsDevice_MVCEvent(object sender, MVCEventArgs args)
+        {
+            tbStub.Text = args.Response;
         }
 
         private void _crDevice_ResponseDataEvent(object sender, ResponseDataEventArgs args)
