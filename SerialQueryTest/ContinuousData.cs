@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.Devices.SerialCommunication;
+using Windows.Foundation.Diagnostics;
 using Windows.UI.Core;
 
 using Com.Regorlas.Logging;
@@ -30,6 +31,8 @@ namespace Com.Regorlas.Serial
         private const int DATA_LENGTH = 13; // When parsing as double, stop just before this character index.
         private const string DELIMITER = "\r\n";
 
+        private uint _lengthMultiplier;
+
         // -------------------------------------------------------------------------------------------------------
         //
         //  Abstract base properties we must implement
@@ -50,6 +53,7 @@ namespace Com.Regorlas.Serial
 
         public ContinuousData(CoreDispatcher dispatcher, Logger logger) : base (dispatcher, logger)
         {
+            _lengthMultiplier = 1;
         }
         protected virtual void OnContinuousDataEvent(ContinuousDataEventArgs e)
         {
@@ -63,8 +67,16 @@ namespace Com.Regorlas.Serial
 
         protected override async Task<bool> GetSampleData()
         {
+            // For initial load, we have more patience and grab just one piece of data.
+            UpdateReadWriteTimeouts(500, 100);
+            _lengthMultiplier = 1;
+
             string sampleData = await NextDataString();
             Log("Successfully retrieved sample data."); // {sampleData} content unpredictable, do not log.
+
+            // Once successfully loaded the first piece of data, less patience and grab more.
+            UpdateReadWriteTimeouts(20, 100);
+            _lengthMultiplier = 10;
 
             return true;
         }
@@ -110,9 +122,8 @@ namespace Com.Regorlas.Serial
         {
             string inString = null;
             int deliminiterIndex;
-            int syncRemainder = 0;
 
-            uint loadedSize = await ReaderLoadAsync(EXPECTED_LENGTH);
+            uint loadedSize = await ReaderLoadAsync(EXPECTED_LENGTH*_lengthMultiplier);
             if (loadedSize > 0)
             {
                 try
@@ -126,52 +137,17 @@ namespace Com.Regorlas.Serial
                     IOError($"Non UTF-8 data encountered. This is expected when {DeviceLabel} is not on this port.");
                 }
 
-                deliminiterIndex = inString.IndexOf(DELIMITER);
-                if (deliminiterIndex != (EXPECTED_LENGTH-DELIMITER.Length))
+                deliminiterIndex = inString.LastIndexOf(DELIMITER);
+                if (deliminiterIndex < (EXPECTED_LENGTH - DELIMITER.Length))
                 {
-                    // Resync Mode: the end deliminiter is not where we expected it to be. Can we recover?
-                    if (inString.Length < EXPECTED_LENGTH)
-                    {
-                        // Occasionally not all 18 requested bytes came in, and we just need to ask for the rest.
-                        syncRemainder = EXPECTED_LENGTH - inString.Length;
-                    }
-                    else if (deliminiterIndex == -1)
-                    {
-                        // If we have the full length yet there's no delimiter at all in the string we retrieved,
-                        // then the problem is worse than just getting offset data.
-                        IOError($"No delimiter in data retrieved from {DeviceLabel}");
-                    }
-                    else
-                    {
-                        // Delimiter is somewhere in the middle instead of the end. Discard the end of the
-                        // truncated prior segment, keep the start of the latter segment, and try to read data
-                        // to complete the latter segment.
-                        inString = inString.Substring(deliminiterIndex + DELIMITER.Length);
-                        syncRemainder = EXPECTED_LENGTH - inString.Length;
-                    }
-
-                    if (syncRemainder < 0)
-                    {
-                        // This means a dumb arithmetic error was made earlier.
-                        IOError($"Expected inString.Length to be {EXPECTED_LENGTH} or less, but is {inString.Length}");
-                    }
-
-                    loadedSize = await ReaderLoadAsync((uint)syncRemainder);
-                    if (loadedSize != syncRemainder)
-                    {
-                        // If we are really just picking up a few straggler bytes, this would be easy.
-                        // If it is a problem, something else is wrong.
-                        IOError($"Failed to resync, want {syncRemainder} but got {loadedSize}");
-                    }
-
-                    // Not checking for ArgumentOutOfRangeException here because if baud rate is wrong we should
-                    // have already triggered ArgumentOutOfRangeException in the earlier ReadString().
-                    inString += ReaderReadString(loadedSize);
-
-                    if ((EXPECTED_LENGTH-DELIMITER.Length) != inString.IndexOf(DELIMITER))
-                    {
-                        IOError($"Failed to resync, only got {inString.Length} long string: {inString}");
-                    }
+                    IOError($"Failed to read enough characters from {DeviceLabel}");
+                }
+                else if(deliminiterIndex > (EXPECTED_LENGTH-DELIMITER.Length))
+                {
+                    // We have read more than one string of the expected format, extract just the final
+                    // instance.
+                    inString = inString.Substring(deliminiterIndex - (EXPECTED_LENGTH - DELIMITER.Length), EXPECTED_LENGTH);
+                    Log($"Discarding {loadedSize - EXPECTED_LENGTH} from {DeviceLabel}");
                 }
 
                 if (!ValidateFormat(inString))
